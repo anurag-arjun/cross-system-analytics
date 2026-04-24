@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    ports:
+      - "8124:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./core/schemas:/docker-entrypoint-initdb.d:ro
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: "nexus"
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus
+      POSTGRES_DB: nexus
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  observable:
+    image: node:20-alpine
+    command: >
+      sh -c "cd /observable &&
+             npm install &&
+             npm run dev -- --host 0.0.0.0 --port 3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./observable:/observable
+    working_dir: /observable
+    depends_on:
+      - clickhouse
+
+volumes:
+  clickhouse_data:
+  postgres_data:

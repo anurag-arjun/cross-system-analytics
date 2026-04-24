@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3
+    ports:
+      - "8124:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./core/schemas:/docker-entrypoint-initdb.d
+    environment:
+      CLICKHOUSE_DB: nexus
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: "nexus"
+
+  postgres:
+    image: postgres:16
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: nexus_ops
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: nexus
+
+  dagster:
+    image: python:3.11-slim
+    command: >
+      sh -c "pip install dagster dagster-webserver &&
+             dagster dev -h 0.0.0.0 -p 3000"
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    depends_on:
+      - clickhouse
+      - postgres
+
+  observable:
+    image: node:20-alpine
+    command: >
+      sh -c "cd /observable &&
+             npm install &&
+             npm run dev -- --host 0.0.0.0 --port 3001"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./observable:/observable
+    working_dir: /observable
+    depends_on:
+      - clickhouse
+
+volumes:
+  clickhouse_data:
+  postgres_data:

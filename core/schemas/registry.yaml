@@ -1,0 +1,139 @@
+version: 1
+
+# Event type registry for canonical_events.
+# Adding an event type requires:
+#   1. Entry in this file
+#   2. Adapter that produces canonical rows conforming to the spec
+#   3. Unit test with synthetic data
+#   4. No changes to core/trajectory/ or core/identity/ unless new relationship type needed
+
+event_types:
+  # EVM / onchain events
+  swap:
+    category: transaction
+    required_properties: [token_in, token_out, amount_in, amount_out]
+    optional_properties: [aggregator, venue]
+
+  bridge_out:
+    category: transaction
+    required_properties: [destination_chain, link_key]
+    optional_properties: [link_key_type]
+
+  bridge_in:
+    category: transaction
+    required_properties: [source_chain, link_key]
+    optional_properties: [link_key_type]
+
+  lend_deposit:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [venue]
+
+  lend_borrow:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [venue]
+
+  lend_repay:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [venue]
+
+  lend_withdraw:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [venue]
+
+  perp_open:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [venue]
+
+  perp_close:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [venue]
+
+  perp_fill:
+    category: transaction
+    required_properties: [token_in, token_out, amount_in, amount_out]
+    optional_properties: [venue]
+
+  lp_add:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [token_out, amount_out, venue]
+
+  lp_remove:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [token_in, amount_in, venue]
+
+  stake:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [venue]
+
+  unstake:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [venue]
+
+  claim:
+    category: transaction
+    required_properties: []
+    optional_properties: [token_out, amount_out, venue]
+
+  nft_buy:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [token_out, venue]
+
+  nft_sell:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [token_in, venue]
+
+  transfer_in:
+    category: transaction
+    required_properties: [token_in, amount_in]
+    optional_properties: [counterparty]
+
+  transfer_out:
+    category: transaction
+    required_properties: [token_out, amount_out]
+    optional_properties: [counterparty]
+
+  swap_internal:
+    category: transaction
+    required_properties: [token_in, token_out, amount_in, amount_out]
+    optional_properties: [venue]
+    notes: "Excluded from trajectory queries by default. Aggregator events are authoritative."
+
+  # Web2 / acquisition events
+  pageview:
+    category: acquisition
+    required_properties: [url, session_id]
+    optional_properties: [referrer, utm_source, utm_medium, utm_campaign]
+
+  session_start:
+    category: acquisition
+    required_properties: [session_id, client_id]
+    optional_properties: [utm_source, utm_medium, utm_campaign]
+
+  # Lifecycle events
+  signup:
+    category: lifecycle
+    required_properties: [user_id]
+    optional_properties: [email_hash, referral_code]
+
+  upgrade:
+    category: lifecycle
+    required_properties: [user_id, plan]
+    optional_properties: [amount_usd]
+
+  # Placeholder for future sources
+  api_call:
+    category: product
+    required_properties: [endpoint]
+    optional_properties: [method, status_code, latency_ms]
