@@ -96,9 +96,7 @@ class TrajectoryEngine:
         if not bridge_outs:
             return same_chain
 
-        cross_chain_events = self._resolve_bridge_links(
-            resolved_id, bridge_outs, start_ts, end_ts
-        )
+        cross_chain_events = self._resolve_bridge_links(resolved_id, bridge_outs, start_ts, end_ts)
 
         all_events = list(same_chain)
         seen = {e.event_id for e in all_events}
@@ -178,9 +176,7 @@ class TrajectoryEngine:
             _, dst_chain, dst_entity_id, _ = row
             if not dst_entity_id:
                 continue
-            dst_rows = self._query_dst_chain_events(
-                dst_entity_id, dst_chain, start_ts, end_ts
-            )
+            dst_rows = self._query_dst_chain_events(dst_entity_id, dst_chain, start_ts, end_ts)
             cross_chain.extend(_row_to_event(r) for r in dst_rows)
 
         return cross_chain
@@ -212,13 +208,13 @@ class TrajectoryEngine:
         if entity_type == "wallet":
             return entity_id
         if self.graph is None:
-            return None
+            return entity_id
         results = self.graph.resolve(
             entity_id, entity_type=entity_type, target_type="wallet", max_depth=3
         )
         if results:
             return results[0].entity_id
-        return None
+        return entity_id
 
 
 _ROW_COLUMNS = [
