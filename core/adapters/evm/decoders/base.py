@@ -74,6 +74,7 @@ class LogDecoder(ABC):
             return tuple()
         return eth_abi_decode(types, bytes.fromhex(data_hex[2:]))
 
-    def _topic_address(self, topic: str) -> str:
-        """Extract address from indexed topic (32 bytes, right-aligned)."""
+    def _topic_address(self, topic: str | None) -> str:
+        if topic is None:
+            return ""
         return "0x" + topic[-40:].lower()
