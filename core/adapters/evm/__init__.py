@@ -20,6 +20,14 @@ from core.adapters.evm.registry import DecoderRegistry, build_default_registry
 
 load_dotenv()
 
+# HyperSync URL mapping — chain names don't always match subdomains.
+_HYPER_URLS: dict[str, str] = {
+    "ethereum": "https://eth.hypersync.xyz",
+    "base": "https://base.hypersync.xyz",
+    "arbitrum": "https://arbitrum.hypersync.xyz",
+    "optimism": "https://optimism.hypersync.xyz",
+}
+
 
 def _run_coro(coro):
     """Run a coroutine safely from both sync and async contexts.
@@ -120,7 +128,7 @@ class EVMAdapter(Adapter):
     ) -> None:
         self.chain = chain
         self.hyper_token = hyper_token or os.getenv("HYPERSYNC_TOKEN")
-        self.hyper_url = hyper_url or f"https://{chain}.hypersync.xyz"
+        self.hyper_url = hyper_url or _HYPER_URLS.get(chain, f"https://{chain}.hypersync.xyz")
         self.page_size = page_size
         self.registry = registry or build_default_registry()
 
