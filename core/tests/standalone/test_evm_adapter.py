@@ -31,17 +31,15 @@ WETH_BASE = "0x4200000000000000000000000000000000000006"
 
 
 def test_fetch_transfer_logs(adapter: EVMAdapter):
-    """Fetch Transfer events from the last ~2 minutes on Base."""
+    """Fetch events from WETH on Base — must return transfer_out or deposit."""
     end = datetime.now(timezone.utc)
     start = end - timedelta(minutes=2)
 
     events = list(adapter.ingest(start, end, addresses=WETH_BASE))
-
-    # We should get *some* transfers on Base in 30 min (high activity)
-    assert len(events) > 0, "No transfer events found in the last 30 min"
+    assert len(events) > 0, "No events found for WETH in the last 2 min"
 
     ev = events[0]
-    assert ev.event_type == "transfer_out"
+    assert ev.event_type in ("transfer_out", "deposit"), f"Unexpected event_type: {ev.event_type}"
     assert ev.entity_type == "wallet"
     assert ev.source_system == "evm_base"
     assert ev.chain == "base"

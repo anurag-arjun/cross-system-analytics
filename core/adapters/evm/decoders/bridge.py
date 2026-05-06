@@ -127,7 +127,7 @@ class BaseETHBridgeInitiatedDecoder(LogDecoder):
 
     @property
     def protocol(self) -> str:
-        return "base_native"
+        return "op_stack"
 
     def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
         topics = log.get("topics", [])
@@ -154,7 +154,7 @@ class BaseETHBridgeInitiatedDecoder(LogDecoder):
             amount_out=amount,
             counterparty=receiver,
             link_key=f"{log['transactionHash']}:eth",
-            link_key_type="base_bridge_tx",
+            link_key_type="op_stack_bridge",
             extra={"receiver": receiver, "amount": str(amount)},
         )
 
@@ -277,6 +277,111 @@ class StargateReceiveFromChainDecoder(LogDecoder):
         )
 
 
+class ETHBridgeFinalizedDecoder(LogDecoder):
+    """ETHBridgeFinalized — bridge_in on L2 (L1→L2 deposit completed) or
+    L1 (L2→L1 withdrawal completed).  Emitted by both L1StandardBridge and
+    L2StandardBridge.
+
+    Link key: tx_hash:eth for now (heuristic).  Precise matching via the
+    CrossDomainMessenger's RelayedMessage msgHash will be added per ADR-002."""
+
+    @property
+    def topic0(self) -> str:
+        return "0x31b2166ff604fc5672ea5df08a78081d2bc6d746cadce880747f3643d819e83d"
+
+    @property
+    def event_signature(self) -> str:
+        return "ETHBridgeFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData)"
+
+    @property
+    def protocol(self) -> str:
+        return "op_stack"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 3:
+            return None
+        sender = self._topic_address(topics[1])
+        receiver = self._topic_address(topics[2])
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["uint256", "bytes"])
+        amount = Decimal(vals[0])
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=receiver,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            token_in="ETH",
+            amount_in=amount,
+            counterparty=sender,
+            link_key=f"{log['transactionHash']}:eth",
+            link_key_type="op_stack_bridge",
+            extra={"from": sender, "receiver": receiver, "amount": str(amount)},
+        )
+
+
+class ERC20BridgeFinalizedDecoder(LogDecoder):
+    """ERC20BridgeFinalized — bridge_in on L2 (L1→L2 deposit completed) or
+    L1 (L2→L1 withdrawal completed).  Emitted by both L1StandardBridge and
+    L2StandardBridge."""
+
+    @property
+    def topic0(self) -> str:
+        return "0xd59c65b35445225835c83f50b6ede06a7be047d22e357073e250d9af537518cd"
+
+    @property
+    def event_signature(self) -> str:
+        return "ERC20BridgeFinalized(address indexed localToken, address indexed remoteToken, address indexed from, address to, uint256 amount, bytes extraData)"
+
+    @property
+    def protocol(self) -> str:
+        return "op_stack"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        local_token = self._topic_address(topics[1])
+        remote_token = self._topic_address(topics[2])
+        sender = self._topic_address(topics[3])
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["address", "uint256", "bytes"])
+        receiver = vals[0]
+        amount = Decimal(vals[1])
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=receiver,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            token_in=local_token,
+            amount_in=amount,
+            counterparty=sender,
+            link_key=f"{log['transactionHash']}:erc20",
+            link_key_type="op_stack_bridge",
+            extra={
+                "local_token": local_token,
+                "remote_token": remote_token,
+                "from": sender,
+                "receiver": receiver,
+                "amount": str(amount),
+            },
+        )
+
+
 class BaseERC20BridgeInitiatedDecoder(LogDecoder):
     @property
     def topic0(self) -> str:
@@ -288,7 +393,7 @@ class BaseERC20BridgeInitiatedDecoder(LogDecoder):
 
     @property
     def protocol(self) -> str:
-        return "base_native"
+        return "op_stack"
 
     def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
         topics = log.get("topics", [])
@@ -317,6 +422,6 @@ class BaseERC20BridgeInitiatedDecoder(LogDecoder):
             amount_out=amount,
             counterparty=receiver,
             link_key=f"{log['transactionHash']}:erc20",
-            link_key_type="base_bridge_tx",
+            link_key_type="op_stack_bridge",
             extra={"remote_token": remote_token, "receiver": receiver, "amount": str(amount)},
         )

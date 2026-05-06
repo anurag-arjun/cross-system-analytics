@@ -4,6 +4,8 @@ from core.adapters.evm.decoders.bridge import (
     AcrossV3FundsDepositedDecoder,
     BaseERC20BridgeInitiatedDecoder,
     BaseETHBridgeInitiatedDecoder,
+    ERC20BridgeFinalizedDecoder,
+    ETHBridgeFinalizedDecoder,
     StargateReceiveFromChainDecoder,
     StargateSendToChainDecoder,
 )
@@ -31,6 +33,8 @@ __all__ = [
     "AcrossV3FilledRelayDecoder",
     "BaseETHBridgeInitiatedDecoder",
     "BaseERC20BridgeInitiatedDecoder",
+    "ETHBridgeFinalizedDecoder",
+    "ERC20BridgeFinalizedDecoder",
     "DEFAULT_DECODERS",
 ]
 
@@ -47,4 +51,6 @@ DEFAULT_DECODERS: list[LogDecoder] = [
     AcrossV3FilledRelayDecoder(),
     BaseETHBridgeInitiatedDecoder(),
     BaseERC20BridgeInitiatedDecoder(),
+    ETHBridgeFinalizedDecoder(),
+    ERC20BridgeFinalizedDecoder(),
 ]
