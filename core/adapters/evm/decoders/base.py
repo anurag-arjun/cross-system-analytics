@@ -35,6 +35,7 @@ class DecodedEvent:
     counterparty: str | None = None
     link_key: str | None = None
     link_key_type: str | None = None
+    aggregator: str = ""
     extra: dict = field(default_factory=dict)
 
 

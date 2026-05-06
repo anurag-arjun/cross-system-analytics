@@ -1,3 +1,8 @@
+from core.adapters.evm.decoders.aggregator import (
+    CowTradeDecoder,
+    OneInchOrderFilledDecoder,
+    ZeroExTransformedERC20Decoder,
+)
 from core.adapters.evm.decoders.base import DecodedEvent, LogDecoder
 from core.adapters.evm.decoders.bridge import (
     AcrossV3FilledRelayDecoder,
@@ -35,6 +40,9 @@ __all__ = [
     "BaseERC20BridgeInitiatedDecoder",
     "ETHBridgeFinalizedDecoder",
     "ERC20BridgeFinalizedDecoder",
+    "CowTradeDecoder",
+    "ZeroExTransformedERC20Decoder",
+    "OneInchOrderFilledDecoder",
     "DEFAULT_DECODERS",
 ]
 
@@ -53,4 +61,7 @@ DEFAULT_DECODERS: list[LogDecoder] = [
     BaseERC20BridgeInitiatedDecoder(),
     ETHBridgeFinalizedDecoder(),
     ERC20BridgeFinalizedDecoder(),
+    CowTradeDecoder(),
+    ZeroExTransformedERC20Decoder(),
+    OneInchOrderFilledDecoder(),
 ]

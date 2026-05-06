@@ -516,6 +516,7 @@ class EVMAdapter(Adapter):
             amount_in=ev.amount_in,
             amount_out=ev.amount_out,
             counterparty=ev.counterparty,
+            aggregator=ev.aggregator or None,
             link_key=ev.link_key,
             link_key_type=ev.link_key_type,
             extra=ev.extra,

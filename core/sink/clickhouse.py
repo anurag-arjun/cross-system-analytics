@@ -127,6 +127,23 @@ class ClickHouseSink(EventSink):
     def total_written(self) -> int:
         return self._total_written
 
+    def close(self) -> None:
+        self.flush()
+        if self._client is not None:
+            self._client.close()
+
+    def dedup_aggregators(self) -> int:
+        """Mark underlying DEX Swap events as 'swap_internal' when an
+        aggregator-level swap exists in the same transaction.
+
+        Per ENGINEERING_PLAN section 3.5: GROUP BY tx_hash — if an
+        aggregator event (CoW Trade, 0x TransformedERC20, 1inch OrderFilled)
+        exists in a tx, all other Swap events in that tx are reclassified
+        as 'swap_internal' and excluded from trajectory queries by default.
+
+        Returns the number of rows reclassified."""
+        return _aggregator_dedup(self._ensure_client(), self.config.table)
+
 
 class InMemorySink(EventSink):
     """Sink that stores events in a list for testing."""
@@ -318,3 +335,60 @@ def _bridge_link_to_row(link: Any) -> list[Any]:
         1.0,  # link_confidence
         datetime.now(),
     ]
+
+
+def _chunk_list(lst: list, size: int) -> list[list]:
+    """Split a list into chunks of at most `size` elements."""
+    return [lst[i : i + size] for i in range(0, len(lst), size)]
+
+
+def _aggregator_dedup(client, table: str) -> int:
+    """Reclassify DEX Swap events as swap_internal when an aggregator
+    event exists in the same transaction."""
+    try:
+        result = client.command(
+            f"ALTER TABLE {table}"
+            f" UPDATE event_type = 'swap_internal'"
+            f" WHERE tx_hash IN ("
+            f"  SELECT tx_hash FROM {table}"
+            f"  WHERE aggregator != '' AND event_type = 'swap'"
+            f" )"
+            f" AND event_type = 'swap'"
+            f" AND aggregator = ''"
+        )
+        return result.written_rows if hasattr(result, 'written_rows') else 0
+    except Exception:
+        pass
+
+    # Fallback: find affected rows via SELECT + batch UPDATE
+    agg_txs = client.query(
+        f"SELECT DISTINCT tx_hash FROM {table}"
+        f" WHERE aggregator != '' AND event_type = 'swap'"
+    )
+    if not agg_txs.result_rows:
+        return 0
+    tx_hashes = [row[0] for row in agg_txs.result_rows]
+
+    total = 0
+    for tx_batch in _chunk_list(tx_hashes, 100):
+        result = client.query(
+            f"SELECT event_id FROM {table}"
+            f" WHERE tx_hash IN {{txs:Array(String)}}"
+            f" AND event_type = 'swap' AND aggregator = ''",
+            parameters={"txs": tx_batch},
+        )
+        if not result.result_rows:
+            continue
+        event_ids = [row[0] for row in result.result_rows]
+        for id_batch in _chunk_list(event_ids, 500):
+            try:
+                client.command(
+                    f"ALTER TABLE {table}"
+                    f" UPDATE event_type = 'swap_internal'"
+                    f" WHERE event_id IN {{ids:Array(String)}}",
+                    parameters={"ids": id_batch},
+                )
+            except Exception:
+                pass
+        total += len(event_ids)
+    return total
