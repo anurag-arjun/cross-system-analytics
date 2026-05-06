@@ -18,7 +18,7 @@ class EnrichmentConfig:
     port: int = 8124
     username: str = "default"
     password: str = "nexus"
-    database: str = "default"
+    database: str = "nexus"
 
 
 class PriceFetcher:
