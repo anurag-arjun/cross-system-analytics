@@ -40,9 +40,10 @@ services:
       - postgres
 
   observable:
-    image: node:20-alpine
+    image: nikolaik/python-nodejs:python3.12-nodejs20
     command: >
       sh -c "cd /observable &&
+             pip install clickhouse-connect &&
              npm install &&
              npm run dev -- --host 0.0.0.0 --port 3001"
     ports:

@@ -11,6 +11,11 @@ from dagster import ConfigurableResource
 
 from core.adapters.evm.multi import ChainConfig, MultiChainAdapter
 from core.identity.bridge_links import BridgeLinkEngine
+from core.identity.pending_bridge import (
+    InMemoryPendingBridgeStore,
+    PostgresPendingBridgeStore,
+    PendingBridgeStore,
+)
 from core.sink import BridgeLinkSink, ClickHouseSink, RawLogSink, SinkConfig
 
 
@@ -27,7 +32,7 @@ class ClickHouseResource(ConfigurableResource):
     port: int = 8124
     username: str = "default"
     password: str = "nexus"
-    database: str = "default"
+    database: str = "nexus"
 
     def get_client(self):
         return clickhouse_connect.get_client(
@@ -78,6 +83,25 @@ class ClickHouseResource(ConfigurableResource):
         )
 
 
+class PostgresResource(ConfigurableResource):
+    """Postgres connection for operational state (pending_bridge_outs, etc.)."""
+
+    host: str = "localhost"
+    port: int = 5434
+    username: str = "nexus"
+    password: str = "nexus"
+    database: str = "nexus_ops"
+    enabled: bool = True
+
+    def get_dsn(self) -> str:
+        return f"postgresql://{self.username}:{self.password}@{self.host}:{self.port}/{self.database}"
+
+    def get_pending_bridge_store(self) -> PendingBridgeStore:
+        if not self.enabled:
+            return InMemoryPendingBridgeStore()
+        return PostgresPendingBridgeStore(self.get_dsn())
+
+
 class EVMIngestionResource(ConfigurableResource):
     lookback_minutes: int = 30
     hyper_token: str | None = None
@@ -88,5 +112,5 @@ class EVMIngestionResource(ConfigurableResource):
             hyper_token=self.hyper_token or os.getenv("HYPERSYNC_TOKEN"),
         )
 
-    def get_bridge_engine(self) -> BridgeLinkEngine:
-        return BridgeLinkEngine()
+    def get_bridge_engine(self, store: PendingBridgeStore | None = None) -> BridgeLinkEngine:
+        return BridgeLinkEngine(store=store)
