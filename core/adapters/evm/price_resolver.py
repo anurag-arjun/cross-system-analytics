@@ -84,8 +84,8 @@ class PriceResolver:
                     ON p.chain = m.chain
                    AND p.token_address = m.token_address
                 WHERE p.timestamp >= {start:DateTime64(3)}
-                """
-                .format(start=(datetime.now(timezone.utc) - timedelta(hours=2))),
+                """,
+                parameters={"start": datetime.now(timezone.utc) - timedelta(hours=2)},
             )
             for row in rows.result_rows:
                 chain, addr, price, dec = row

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -9,6 +10,7 @@ import clickhouse_connect
 from clickhouse_connect.driver.client import Client
 
 from core.adapters.prices.coingecko import CoinGeckoPriceAdapter, TokenPrice
+from core.adapters.prices.dexscreener import DexScreenerPriceAdapter
 from core.enrichment.metadata import STABLECOINS, TokenMetadataLoader
 
 
@@ -25,11 +27,17 @@ class PriceFetcher:
     def __init__(
         self,
         config: EnrichmentConfig | None = None,
-        adapter: CoinGeckoPriceAdapter | None = None,
+        adapter: CoinGeckoPriceAdapter | DexScreenerPriceAdapter | None = None,
         client: Client | None = None,
     ) -> None:
         self.config = config or EnrichmentConfig()
-        self.adapter = adapter or CoinGeckoPriceAdapter()
+        # Prefer CoinGecko if API key is set, fall back to DexScreener (free).
+        if adapter is not None:
+            self.adapter = adapter
+        elif os.getenv("COINGECKO_API_KEY"):
+            self.adapter = CoinGeckoPriceAdapter()
+        else:
+            self.adapter = DexScreenerPriceAdapter()
         self._client = client
 
     def _ensure_client(self) -> Client:
