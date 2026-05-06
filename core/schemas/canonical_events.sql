@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS canonical_events (
   entity_type        LowCardinality(String),  -- 'wallet', 'user_id', 'email_hash', 'device_id'
 
   -- event
-  event_id           FixedString(32),         -- deterministic hash(source_system, source_event_id)
+  event_id           String,                  -- deterministic hash(source_system, source_event_id)
   event_type         LowCardinality(String),  -- see registry.yaml
   event_category     LowCardinality(String),  -- 'transaction', 'product', 'acquisition', 'lifecycle'
   timestamp          DateTime64(3),
@@ -19,23 +19,23 @@ CREATE TABLE IF NOT EXISTS canonical_events (
   chain              LowCardinality(String),  -- NULL for Web2 sources
   block_number       Nullable(UInt64),
   block_time         Nullable(DateTime64(3)),
-  tx_hash            Nullable(FixedString(32)),
+  tx_hash            Nullable(String),
   log_index          Nullable(UInt32),
 
   -- classification
   protocol           LowCardinality(String),
-  venue              LowCardinality(String),   -- pool/market/specific contract
+  venue              String,                   -- pool/market/specific contract
 
   -- flow (EVM-specific; nullable for Web2 events)
-  token_in           Nullable(FixedString(20)),
-  token_out          Nullable(FixedString(20)),
-  amount_in          Nullable(Decimal(76, 0)), -- raw units, decimals in token table
-  amount_out         Nullable(Decimal(76, 0)),
-  amount_in_usd      Nullable(Decimal(38, 6)), -- enriched via token_prices ASOF
-  amount_out_usd     Nullable(Decimal(38, 6)),
+  token_in           Nullable(String),
+  token_out          Nullable(String),
+  amount_in          Nullable(String),         -- raw units as string (wei), parsed on read
+  amount_out         Nullable(String),
+  amount_in_usd      Nullable(Float64),        -- enriched via token_prices ASOF
+  amount_out_usd     Nullable(Float64),
 
   -- counterparty / routing
-  counterparty       Nullable(FixedString(20)),
+  counterparty       Nullable(String),
   aggregator         LowCardinality(String),   -- '1inch','0x','cowswap', else ''
 
   -- linking (for cross-chain / cross-system stitching)

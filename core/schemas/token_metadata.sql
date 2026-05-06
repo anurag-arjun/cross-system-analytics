@@ -3,11 +3,12 @@
 -- Populated once per token; decimals rarely change.
 
 CREATE TABLE IF NOT EXISTS token_metadata (
-  token_address      FixedString(20),
+  token_address      String,
   chain              LowCardinality(String),
   symbol             LowCardinality(String),
   decimals           UInt8,
   name               String,
+  coingecko_id       Nullable(String),
   inserted_at        DateTime64(3) DEFAULT now()
 ) ENGINE = ReplacingMergeTree(inserted_at)
 ORDER BY (chain, token_address);
