@@ -529,3 +529,140 @@ class LayerZeroPacketDeliveredDecoder(LogDecoder):
         if isinstance(val, bytes):
             return "0x" + val.hex()[-40:]
         return str(val)[-42:]
+
+
+class OPMessagePassedDecoder(LogDecoder):
+    """OP Stack L2→L1 withdrawal initiated (bridge_out).
+
+    Emitted by L2ToL1MessagePasser (0x42...0016) on L2 when a withdrawal
+    is initiated.  The withdrawalHash is the precise cross-chain key used
+    for matching with WithdrawalProven/WithdrawalFinalized on L1 (ADR-002).
+    """
+
+    @property
+    def topic0(self) -> str:
+        return "0x02a52367d10742d8032712c1bb8e0144ff1ec5ffda1ed7d70bb05a2744955054"
+
+    @property
+    def event_signature(self) -> str:
+        return "MessagePassed(uint256 indexed nonce, address indexed sender, address indexed target, uint256 value, uint256 gasLimit, bytes data, bytes32 withdrawalHash)"
+
+    @property
+    def protocol(self) -> str:
+        return "op_stack"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        sender = self._topic_address(topics[2])
+        target = self._topic_address(topics[3])
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["uint256", "uint256", "bytes", "bytes32"])
+        value = Decimal(vals[0])
+        withdrawal_hash = "0x" + vals[3].hex() if isinstance(vals[3], bytes) else str(vals[3])
+
+        return DecodedEvent(
+            event_type="bridge_out",
+            entity_id=sender,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            token_out="ETH",
+            amount_out=value,
+            counterparty=target,
+            link_key=withdrawal_hash,
+            link_key_type="op_withdrawal_hash",
+            extra={"withdrawal_hash": withdrawal_hash, "target": target, "value": str(value)},
+        )
+
+
+class OPWithdrawalProvenDecoder(LogDecoder):
+    """OP Stack WithdrawalProven on L1 (bridge_in signal).
+
+    Emitted by OptimismPortal on Ethereum when a withdrawal's fault proof
+    has been submitted.
+    """
+
+    @property
+    def topic0(self) -> str:
+        return "0x67a6208cfcc0801d50f6cbe764733f4fddf66ac0b04442061a8a8c0cb6b63f62"
+
+    @property
+    def event_signature(self) -> str:
+        return "WithdrawalProven(bytes32 indexed withdrawalHash, address indexed from, address indexed to)"
+
+    @property
+    def protocol(self) -> str:
+        return "op_stack"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        withdrawal_hash = topics[1]
+        sender = self._topic_address(topics[2])
+        target = self._topic_address(topics[3])
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=sender,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            counterparty=target,
+            link_key=withdrawal_hash,
+            link_key_type="op_withdrawal_hash",
+            extra={"withdrawal_hash": withdrawal_hash, "from": sender, "to": target},
+        )
+
+
+class OPWithdrawalFinalizedDecoder(LogDecoder):
+    """OP Stack WithdrawalFinalized on L1 (bridge_in final confirmation).
+
+    Emitted by OptimismPortal on Ethereum after the 7-day challenge period."""
+
+    @property
+    def topic0(self) -> str:
+        return "0xdb5c7652857aa163daadd670e116628fb42e869d8ac4251ef8971d9e5727df1b"
+
+    @property
+    def event_signature(self) -> str:
+        return "WithdrawalFinalized(bytes32 indexed withdrawalHash, bool success)"
+
+    @property
+    def protocol(self) -> str:
+        return "op_stack"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 2:
+            return None
+        withdrawal_hash = topics[1]
+        data = log.get("data", "0x")
+        success = False
+        if data != "0x":
+            vals = self._decode_abi(data, ["bool"])
+            success = vals[0]
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id="",
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            link_key=withdrawal_hash,
+            link_key_type="op_withdrawal_hash",
+            extra={"withdrawal_hash": withdrawal_hash, "success": success},
+        )

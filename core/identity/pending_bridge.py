@@ -15,6 +15,7 @@ from typing import Any, Optional
 RETRY_CADENCES: dict[str, timedelta] = {
     "across_deposit_id": timedelta(minutes=2),
     "op_stack_bridge": timedelta(hours=6),
+    "op_withdrawal_hash": timedelta(hours=6),
     "stargate_dst_chain": timedelta(minutes=10),
     "stargate_src_eid": timedelta(minutes=10),
     "op_withdrawal_hash": timedelta(hours=6),
@@ -336,6 +337,7 @@ class PostgresPendingBridgeStore(PendingBridgeStore):
                     CASE link_key_type
                         WHEN 'across_deposit_id' THEN INTERVAL '2 minutes'
                         WHEN 'op_stack_bridge' THEN INTERVAL '6 hours'
+                        WHEN 'op_withdrawal_hash' THEN INTERVAL '6 hours'
                         WHEN 'stargate_dst_chain' THEN INTERVAL '10 minutes'
                         WHEN 'stargate_src_eid' THEN INTERVAL '10 minutes'
                         WHEN 'op_withdrawal_hash' THEN INTERVAL '6 hours'
