@@ -27,7 +27,7 @@ class SinkConfig:
     port: int = 8124
     username: str = "default"
     password: str = "nexus"
-    database: str = "default"
+    database: str = "nexus"
     table: str = "canonical_events"
     batch_size: int = 10_000
     auto_flush_interval_sec: float | None = None
@@ -58,7 +58,8 @@ class ClickHouseSink(EventSink):
         return self._client
 
     def write(self, events: list[CanonicalEvent]) -> int:
-        """Buffer events. Flush if batch_size exceeded."""
+        """Buffer events.  Deduplication is deferred to flush() to avoid
+        a ClickHouse round-trip on every single-event write."""
         self._buffer.extend(events)
         if len(self._buffer) >= self.config.batch_size:
             return self.flush()
@@ -69,16 +70,36 @@ class ClickHouseSink(EventSink):
         return self.write([event])
 
     def flush(self) -> int:
-        """Insert buffered events into ClickHouse."""
+        """Deduplicate buffered events against ClickHouse, then insert."""
         if not self._buffer:
             return 0
+        new_events = self._deduplicate(self._buffer)
+        if not new_events:
+            self._buffer.clear()
+            return 0
         client = self._ensure_client()
-        rows = [_event_to_row(ev) for ev in self._buffer]
+        rows = [_event_to_row(ev) for ev in new_events]
         client.insert(self.config.table, rows)
-        count = len(self._buffer)
+        count = len(new_events)
         self._total_written += count
         self._buffer.clear()
         return count
+
+    def _deduplicate(self, events: list[CanonicalEvent]) -> list[CanonicalEvent]:
+        """Filter out events whose event_id already exists in ClickHouse."""
+        if not events or self._client is None:
+            return events
+        event_ids = [ev.event_id for ev in events]
+        try:
+            result = self._client.query(
+                "SELECT event_id FROM canonical_events WHERE event_id IN {event_ids:Array(String)}",
+                parameters={"event_ids": event_ids},
+            )
+            existing = {row[0] for row in result.result_rows}
+            return [ev for ev in events if ev.event_id not in existing]
+        except Exception:
+            # If the query fails (e.g. table does not exist yet), let all through.
+            return events
 
     def close(self) -> None:
         self.flush()
@@ -179,10 +200,10 @@ def _event_to_row(ev: CanonicalEvent) -> list[Any]:
         ev.venue or "",
         ev.token_in,
         ev.token_out,
-        ev.amount_in,
-        ev.amount_out,
-        ev.amount_in_usd,
-        ev.amount_out_usd,
+        str(ev.amount_in) if ev.amount_in is not None else None,
+        str(ev.amount_out) if ev.amount_out is not None else None,
+        float(ev.amount_in_usd) if ev.amount_in_usd is not None else None,
+        float(ev.amount_out_usd) if ev.amount_out_usd is not None else None,
         ev.counterparty,
         ev.aggregator or "",
         ev.link_key,
@@ -279,7 +300,7 @@ def _bridge_link_to_row(link: Any) -> list[Any]:
         link.dst_entity_id,
         link.dst_event_id,
         link.token,
-        link.amount,
+        str(link.amount) if link.amount is not None else None,
         None,  # amount_usd (enriched later)
         1.0,  # link_confidence
         datetime.now(),
