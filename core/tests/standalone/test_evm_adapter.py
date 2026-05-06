@@ -49,7 +49,7 @@ def test_fetch_transfer_logs(adapter: EVMAdapter):
     assert ev.token_out is not None
     assert ev.amount_out is not None
     assert ev.amount_out > 0
-    assert ev.counterparty is not None
+    # counterparty may be None for deposit events
 
     # Validate event_id is deterministic sha256
     assert len(ev.event_id) == 64

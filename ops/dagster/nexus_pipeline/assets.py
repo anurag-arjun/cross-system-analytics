@@ -146,6 +146,8 @@ def bridge_links(
                             "tx_hash": ev.tx_hash,
                             "entity_id": ev.entity_id,
                             "event_id": ev.event_id,
+                            "amount": ev.amount_in or ev.amount_out,
+                            "token": ev.token_in or ev.token_out,
                         }
                     )
                     if link:

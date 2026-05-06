@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any, Optional
 
+from core.identity.chain_mapping import normalize_chain
 from core.identity.pending_bridge import (
     InMemoryPendingBridgeStore,
+    PendingBridgeOut,
     PendingBridgeStore,
 )
 
@@ -71,6 +74,10 @@ class BridgeLinkEngine:
         bridge always moves between distinct chains).  If multiple
         candidates exist, the earliest src_block_time wins.
 
+        For Stargate, link_keys use different ID systems on each side
+        (chain_id vs endpoint_id).  We normalize both to chain names
+        and match heuristically with amount/time tolerances.
+
         Returns the completed BridgeLink if matched, None otherwise.
         """
         link_key = event.get("link_key")
@@ -83,6 +90,10 @@ class BridgeLinkEngine:
 
         # A bridge must go between *different* chains.
         candidates = [c for c in candidates if c.src_chain != dst_chain]
+
+        if not candidates and link_key_type in ("stargate_dst_chain", "stargate_src_eid", "layerzero_src_eid"):
+            candidates = self._match_stargate_chain_normalized(event, dst_chain)
+
         if not candidates:
             return None
 
@@ -118,6 +129,84 @@ class BridgeLinkEngine:
         )
         self._links.append(link)
         return link
+
+    # ------------------------------------------------------------------
+    # Stargate: chain-ID-normalized matching
+    # ------------------------------------------------------------------
+
+    _STARGATE_KEY_TYPES = ("stargate_dst_chain", "stargate_src_eid", "layerzero_src_eid")
+    _STARGATE_AMOUNT_TOLERANCE = Decimal("0.005")  # 0.5%
+    _STARGATE_TIME_WINDOW = timedelta(minutes=30)
+
+    def _match_stargate_chain_normalized(
+        self, event: dict[str, Any], dst_chain: str
+    ) -> list[PendingBridgeOut]:
+        """Match Stargate bridge_in by normalizing chain IDs to chain names.
+
+        Cross-referencing logic:
+          bridge_out: src_chain=A, dst_chain_id=X → dest_chain_name
+          bridge_in:  chain=B, src_eid=Y → source_chain_name
+          Match when: bridge_out.dest_chain == bridge_in.chain
+                  AND bridge_out.src_chain == bridge_in.source_chain
+        """
+        link_key = event.get("link_key")
+        link_key_type = event.get("link_key_type")
+
+        # Normalize the bridge_in's src_eid → source chain name
+        in_source_chain = normalize_chain(link_key, link_key_type)
+        if not in_source_chain:
+            return []
+
+        # The bridge_in arrived on `dst_chain` — this must match the
+        # bridge_out's destination chain (normalized from dst_chain_id).
+        in_dest_chain = dst_chain
+
+        # Fetch ALL pending Stargate/LZ bridge_outs.
+        all_pending = self._store.get_pending_for_retry(
+            datetime.max.replace(tzinfo=timezone.utc)
+        )
+
+        candidates: list[PendingBridgeOut] = []
+        bridge_in_ts = event.get("timestamp")
+
+        for p in all_pending:
+            if p.link_key_type not in self._STARGATE_KEY_TYPES:
+                continue
+            if p.src_chain == dst_chain:
+                continue  # must be cross-chain
+
+            # Bridge_out: src_chain=A, dst_chain_id=normalize→dest_name
+            p_dest_chain = normalize_chain(p.link_key, p.link_key_type)
+            if p_dest_chain != in_dest_chain:
+                continue  # bridge_in's chain must match bridge_out's destination
+
+            # Bridge_out's source chain must match bridge_in's normalized source
+            if p.src_chain != in_source_chain:
+                continue
+
+            # Heuristic: similar amount.
+            p_amount = p.amount
+            ev_amt = event.get("amount")
+            if p_amount is not None and ev_amt is not None:
+                try:
+                    p_dec = Decimal(str(p_amount))
+                    ev_dec = Decimal(str(ev_amt))
+                    if p_dec > 0 and ev_dec > 0:
+                        ratio = abs(p_dec - ev_dec) / max(p_dec, ev_dec)
+                        if ratio > self._STARGATE_AMOUNT_TOLERANCE:
+                            continue
+                except (ValueError, TypeError, Decimal.InvalidOperation):
+                    pass
+
+            # Heuristic: time window.
+            if bridge_in_ts is not None and p.src_block_time is not None:
+                delta = abs(bridge_in_ts - p.src_block_time)
+                if delta > self._STARGATE_TIME_WINDOW:
+                    continue
+
+            candidates.append(p)
+
+        return candidates
 
     def get_pending(self) -> list[Any]:
         """Return bridge_out events awaiting bridge_in matches."""

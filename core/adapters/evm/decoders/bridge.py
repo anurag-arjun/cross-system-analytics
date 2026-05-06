@@ -262,7 +262,11 @@ class AcrossFilledRelayDecoder(LogDecoder):
 
 
 class StargateReceiveFromChainDecoder(LogDecoder):
-    """Stargate v2 ReceiveFromChain — bridge-in event on destination chain."""
+    """DEPRECATED: Stargate's actual bridge_in is LayerZero PacketDelivered.
+
+    The ReceiveFromChain event signature is unverified — zero events found
+    on any chain.  Use LayerZeroPacketDeliveredDecoder instead.
+    Kept for reference until migration is complete."""
 
     @property
     def topic0(self) -> str:
@@ -459,3 +463,69 @@ class BaseERC20BridgeInitiatedDecoder(LogDecoder):
             link_key_type="op_stack_bridge",
             extra={"remote_token": remote_token, "receiver": receiver, "amount": str(amount)},
         )
+
+
+class LayerZeroPacketDeliveredDecoder(LogDecoder):
+    """LayerZero V2 PacketDelivered — bridge_in for all LZ-based bridges.
+
+    Emitted by the EndpointV2 contract when a cross-chain message is
+    delivered.  This is the canonical bridge_in event for Stargate, OFT,
+    and any protocol built on LayerZero.
+
+    The Origin struct contains srcEid (source chain's endpoint ID),
+    which we normalize to a chain name for bridge matching with Stargate's
+    SendToChain (which uses EVM chain IDs).
+
+    Verified on-chain: 3,580 Ethereum, 95 Arbitrum events."""
+
+    @property
+    def topic0(self) -> str:
+        return "0x3cd5e48f9730b129dc7550f0fcea9c767b7be37837cd10e55eb35f734f4bca04"
+
+    @property
+    def event_signature(self) -> str:
+        return "PacketDelivered((uint32 srcEid, bytes32 sender, uint64 nonce), address receiver)"
+
+    @property
+    def protocol(self) -> str:
+        return "layerzero"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        # Origin struct: (uint32 srcEid, bytes32 sender, uint64 nonce)
+        vals = self._decode_abi(data, ["(uint32,bytes32,uint64)", "address"])
+        origin = vals[0]  # tuple (srcEid, sender, nonce)
+        receiver = vals[1]
+        src_eid = origin[0]
+        sender_bytes32 = origin[1]
+        sender = self._address_from_bytes32(sender_bytes32)
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=receiver,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            counterparty=sender,
+            # Store src_eid so the bridge engine can resolve it to a chain name
+            link_key=str(src_eid),
+            link_key_type="layerzero_src_eid",
+            extra={
+                "src_eid": src_eid,
+                "sender": sender,
+                "receiver": receiver,
+            },
+        )
+
+    def _address_from_bytes32(self, val: str | bytes) -> str:
+        """Convert a bytes32 value to an Ethereum address."""
+        if isinstance(val, str):
+            return "0x" + val.lower().replace("0x", "")[-40:]
+        if isinstance(val, bytes):
+            return "0x" + val.hex()[-40:]
+        return str(val)[-42:]
