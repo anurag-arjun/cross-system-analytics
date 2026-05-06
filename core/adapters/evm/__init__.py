@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from core.adapters.base import Adapter, CanonicalEvent
 from core.adapters.evm.decoders import DecodedEvent, LogDecoder
 from core.adapters.evm.registry import DecoderRegistry, build_default_registry
+from core.adapters.evm.price_resolver import PriceResolver
 
 load_dotenv()
 
@@ -125,12 +126,14 @@ class EVMAdapter(Adapter):
         hyper_url: str | None = None,
         page_size: int = 2_000,
         registry: DecoderRegistry | None = None,
+        price_resolver: PriceResolver | None = None,
     ) -> None:
         self.chain = chain
         self.hyper_token = hyper_token or os.getenv("HYPERSYNC_TOKEN")
         self.hyper_url = hyper_url or _HYPER_URLS.get(chain, f"https://{chain}.hypersync.xyz")
         self.page_size = page_size
         self.registry = registry or build_default_registry()
+        self.price_resolver = price_resolver
 
         self.rpc_url = rpc_url or self._default_rpc(chain)
         self._rpc: JsonRpcClient | None = None
@@ -495,6 +498,18 @@ class EVMAdapter(Adapter):
     def _to_canonical(self, ev: DecodedEvent) -> CanonicalEvent:
         source_event_id = f"{ev.tx_hash}:{ev.log_index}"
         event_id = hashlib.sha256(f"{self.source_system}:{source_event_id}".encode()).hexdigest()
+
+        # Resolve USD values at ingestion time (na-sm8p).
+        amount_in_usd = None
+        amount_out_usd = None
+        if self.price_resolver is not None:
+            amount_in_usd = self.price_resolver.resolve(
+                self.chain, ev.token_in, ev.amount_in
+            )
+            amount_out_usd = self.price_resolver.resolve(
+                self.chain, ev.token_out, ev.amount_out
+            )
+
         return CanonicalEvent(
             entity_id=ev.entity_id,
             entity_type="wallet",
@@ -515,6 +530,8 @@ class EVMAdapter(Adapter):
             token_out=ev.token_out,
             amount_in=ev.amount_in,
             amount_out=ev.amount_out,
+            amount_in_usd=amount_in_usd,
+            amount_out_usd=amount_out_usd,
             counterparty=ev.counterparty,
             aggregator=ev.aggregator or None,
             link_key=ev.link_key,
