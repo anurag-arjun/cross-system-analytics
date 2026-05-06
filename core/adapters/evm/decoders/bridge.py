@@ -48,14 +48,20 @@ class StargateSendToChainDecoder(LogDecoder):
         )
 
 
-class AcrossV3FundsDepositedDecoder(LogDecoder):
+class AcrossFundsDepositedDecoder(LogDecoder):
+    """Across V3 FundsDeposited — bridge_out event on source chain.
+
+    Note: V3FundsDeposited is a LEGACY event (unused, kept for ABI migration).
+    The active deposit event is FundsDeposited which uses bytes32 for addresses.
+    Verified against V3SpokePoolInterface.sol from across-protocol/contracts."""
+
     @property
     def topic0(self) -> str:
-        return "0xa123dc29aebf7d0c3322c8eeb5b999e859f39937950ed31056532713d0de396f"
+        return "0x32ed1a409ef04c7b0227189c3a103dc5ac10e775a15b785dcc510201f7c25ad3"
 
     @property
     def event_signature(self) -> str:
-        return "V3FundsDeposited(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed destinationChainId, uint32 indexed depositId, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, address indexed depositor, address recipient, address exclusiveRelayer, bytes message)"
+        return "FundsDeposited(bytes32 inputToken, bytes32 outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed destinationChainId, uint256 indexed depositId, uint32 quoteTimestamp, uint32 fillDeadline, uint32 exclusivityDeadline, bytes32 indexed depositor, bytes32 recipient, bytes32 exclusiveRelayer, bytes message)"
 
     @property
     def protocol(self) -> str:
@@ -67,28 +73,27 @@ class AcrossV3FundsDepositedDecoder(LogDecoder):
             return None
         destination_chain_id = int(topics[1], 16)
         deposit_id = int(topics[2], 16)
-        depositor = self._topic_address(topics[3])
+        depositor = self._bytes32_to_address(topics[3])
         data = log.get("data", "0x")
         if data == "0x":
             return None
         vals = self._decode_abi(
             data,
             [
-                "address",
-                "address",
-                "uint256",
-                "uint256",
-                "uint32",
-                "uint32",
-                "uint32",
-                "address",
-                "address",
-                "address",
-                "bytes",
+                "bytes32",  # inputToken
+                "bytes32",  # outputToken
+                "uint256",  # inputAmount
+                "uint256",  # outputAmount
+                "uint32",   # quoteTimestamp
+                "uint32",   # fillDeadline
+                "uint32",   # exclusivityDeadline
+                "bytes32",  # recipient
+                "bytes32",  # exclusiveRelayer
+                "bytes",    # message
             ],
         )
-        input_token = vals[0]
-        output_token = vals[1]
+        input_token = self._bytes32_to_address(vals[0])
+        output_token = self._bytes32_to_address(vals[1])
         input_amount = Decimal(vals[2])
         output_amount = Decimal(vals[3])
 
@@ -114,6 +119,15 @@ class AcrossV3FundsDepositedDecoder(LogDecoder):
                 "output_token": output_token,
             },
         )
+
+    def _bytes32_to_address(self, val: str | bytes) -> str:
+        """Convert a bytes32 value to an Ethereum address (last 20 bytes)."""
+        if isinstance(val, str):
+            val = val.lower().replace("0x", "")
+            return "0x" + val[-40:]
+        if isinstance(val, bytes):
+            return "0x" + val.hex()[-40:]
+        return str(val)[-42:]
 
 
 class BaseETHBridgeInitiatedDecoder(LogDecoder):
@@ -159,16 +173,19 @@ class BaseETHBridgeInitiatedDecoder(LogDecoder):
         )
 
 
-class AcrossV3FilledRelayDecoder(LogDecoder):
-    """Across V3 FilledV3Relay — bridge-in event on destination chain."""
+class AcrossFilledRelayDecoder(LogDecoder):
+    """Across V3 FilledRelay — bridge_in event on destination chain.
+
+    Note: FilledV3Relay is a LEGACY event. The active fill event is FilledRelay
+    which uses bytes32 for addresses and has different parameter types."""
 
     @property
     def topic0(self) -> str:
-        return "0xb553cf4433b697c1ab9b28c8a3ffefbd12e812ff58d5199aba60b3e6df7f38e3"
+        return "0x44b559f101f8fbcc8a0ea43fa91a05a729a5ea6e14a7c75aa750374690137208"
 
     @property
     def event_signature(self) -> str:
-        return "FilledV3Relay(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed repaymentChainId, uint256 indexed originChainId, uint32 indexed depositId, uint32 fillDeadline, uint32 exclusivityDeadline, address exclusiveRelayer, address relayer, address depositor, address recipient, bytes message)"
+        return "FilledRelay(bytes32 inputToken, bytes32 outputToken, uint256 inputAmount, uint256 outputAmount, uint256 repaymentChainId, uint256 indexed originChainId, uint256 indexed depositId, uint32 fillDeadline, uint32 exclusivityDeadline, bytes32 exclusiveRelayer, bytes32 indexed relayer, bytes32 depositor, bytes32 recipient, bytes32 messageHash, (bytes32,bytes32,uint256,uint8) relayExecutionInfo)"
 
     @property
     def protocol(self) -> str:
@@ -178,27 +195,36 @@ class AcrossV3FilledRelayDecoder(LogDecoder):
         topics = log.get("topics", [])
         if len(topics) < 4:
             return None
-        repayment_chain_id = int(topics[1], 16)
-        origin_chain_id = int(topics[2], 16)
-        deposit_id = int(topics[3], 16)
+        origin_chain_id = int(topics[1], 16)
+        deposit_id = int(topics[2], 16)
+        relayer = self._bytes32_to_address(topics[3])
         data = log.get("data", "0x")
         if data == "0x":
             return None
         vals = self._decode_abi(
             data,
             [
-                "address", "address", "uint256", "uint256",
-                "uint32", "uint32", "uint32",
-                "address", "address", "address", "address", "bytes",
+                "bytes32",  # inputToken
+                "bytes32",  # outputToken
+                "uint256",  # inputAmount
+                "uint256",  # outputAmount
+                "uint256",  # repaymentChainId
+                "uint32",   # fillDeadline
+                "uint32",   # exclusivityDeadline
+                "bytes32",  # exclusiveRelayer
+                "bytes32",  # depositor
+                "bytes32",  # recipient
+                "bytes32",  # messageHash
+                "(bytes32,bytes32,uint256,uint8)",  # relayExecutionInfo
             ],
         )
-        input_token = vals[0]
-        output_token = vals[1]
+        input_token = self._bytes32_to_address(vals[0])
+        output_token = self._bytes32_to_address(vals[1])
         input_amount = Decimal(vals[2])
         output_amount = Decimal(vals[3])
-        relayer = vals[7]
-        depositor = vals[9]
-        recipient = vals[10]
+        # repaymentChainId = vals[4]
+        depositor = self._bytes32_to_address(vals[8])
+        recipient = self._bytes32_to_address(vals[9])
 
         return DecodedEvent(
             event_type="bridge_in",
@@ -218,13 +244,21 @@ class AcrossV3FilledRelayDecoder(LogDecoder):
             link_key_type="across_deposit_id",
             extra={
                 "origin_chain_id": origin_chain_id,
-                "repayment_chain_id": repayment_chain_id,
                 "deposit_id": deposit_id,
                 "depositor": depositor,
                 "recipient": recipient,
                 "relayer": relayer,
             },
         )
+
+    def _bytes32_to_address(self, val: str | bytes) -> str:
+        """Convert a bytes32 value to an Ethereum address (last 20 bytes)."""
+        if isinstance(val, str):
+            val = val.lower().replace("0x", "")
+            return "0x" + val[-40:]
+        if isinstance(val, bytes):
+            return "0x" + val.hex()[-40:]
+        return str(val)[-42:]
 
 
 class StargateReceiveFromChainDecoder(LogDecoder):

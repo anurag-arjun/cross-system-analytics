@@ -5,8 +5,8 @@ from core.adapters.evm.decoders.aggregator import (
 )
 from core.adapters.evm.decoders.base import DecodedEvent, LogDecoder
 from core.adapters.evm.decoders.bridge import (
-    AcrossV3FilledRelayDecoder,
-    AcrossV3FundsDepositedDecoder,
+    AcrossFilledRelayDecoder,
+    AcrossFundsDepositedDecoder,
     BaseERC20BridgeInitiatedDecoder,
     BaseETHBridgeInitiatedDecoder,
     ERC20BridgeFinalizedDecoder,
@@ -34,8 +34,8 @@ __all__ = [
     "UniswapV3SwapDecoder",
     "StargateSendToChainDecoder",
     "StargateReceiveFromChainDecoder",
-    "AcrossV3FundsDepositedDecoder",
-    "AcrossV3FilledRelayDecoder",
+    "AcrossFundsDepositedDecoder",
+    "AcrossFilledRelayDecoder",
     "BaseETHBridgeInitiatedDecoder",
     "BaseERC20BridgeInitiatedDecoder",
     "ETHBridgeFinalizedDecoder",
@@ -55,8 +55,8 @@ DEFAULT_DECODERS: list[LogDecoder] = [
     UniswapV3SwapDecoder(),
     StargateSendToChainDecoder(),
     StargateReceiveFromChainDecoder(),
-    AcrossV3FundsDepositedDecoder(),
-    AcrossV3FilledRelayDecoder(),
+    AcrossFundsDepositedDecoder(),
+    AcrossFilledRelayDecoder(),
     BaseETHBridgeInitiatedDecoder(),
     BaseERC20BridgeInitiatedDecoder(),
     ETHBridgeFinalizedDecoder(),
