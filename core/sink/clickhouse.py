@@ -73,11 +73,11 @@ class ClickHouseSink(EventSink):
         """Deduplicate buffered events against ClickHouse, then insert."""
         if not self._buffer:
             return 0
+        client = self._ensure_client()
         new_events = self._deduplicate(self._buffer)
         if not new_events:
             self._buffer.clear()
             return 0
-        client = self._ensure_client()
         rows = [_event_to_row(ev) for ev in new_events]
         client.insert(self.config.table, rows)
         count = len(new_events)
@@ -86,20 +86,33 @@ class ClickHouseSink(EventSink):
         return count
 
     def _deduplicate(self, events: list[CanonicalEvent]) -> list[CanonicalEvent]:
-        """Filter out events whose event_id already exists in ClickHouse."""
+        """Filter out events whose event_id already exists in ClickHouse.
+
+        Queries are chunked to avoid 'Field value too long' errors when the
+        IN clause contains thousands of IDs."""
         if not events or self._client is None:
             return events
+
         event_ids = [ev.event_id for ev in events]
-        try:
-            result = self._client.query(
-                "SELECT event_id FROM canonical_events WHERE event_id IN {event_ids:Array(String)}",
-                parameters={"event_ids": event_ids},
-            )
-            existing = {row[0] for row in result.result_rows}
-            return [ev for ev in events if ev.event_id not in existing]
-        except Exception:
-            # If the query fails (e.g. table does not exist yet), let all through.
-            return events
+        existing: set[str] = set()
+
+        # Chunk to keep the HTTP query under ClickHouse's field size limit.
+        _DEDUP_CHUNK = 1000
+        for i in range(0, len(event_ids), _DEDUP_CHUNK):
+            chunk = event_ids[i : i + _DEDUP_CHUNK]
+            try:
+                result = self._client.query(
+                    f"SELECT event_id FROM {self.config.table}"
+                    f" WHERE event_id IN {{event_ids:Array(String)}}",
+                    parameters={"event_ids": chunk},
+                )
+                existing.update(row[0] for row in result.result_rows)
+            except Exception:
+                # If the query fails, let this chunk through.
+                # The next pipeline run will catch any duplicates.
+                pass
+
+        return [ev for ev in events if ev.event_id not in existing]
 
     def close(self) -> None:
         self.flush()
