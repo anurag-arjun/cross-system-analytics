@@ -387,35 +387,41 @@ Cross-chain events are joined via `link_key` + `link_key_type` in `canonical_eve
 
 **Deliverable**: 4-chain trending dashboard.
 
-### 6.4 Week 3 — DEX fork + Bridge linking (ETH↔Base via Across)
+### 6.4 Week 3 — DEX fork + Bridge linking (ETH↔Base via Across) + Trending MVP
 
-**Theme**: Trajectory primitive works for same-chain queries.
+**Theme**: Trajectory primitive works for same-chain queries. Trending detection proves data freshness.
 
 **[core]** Port Spellbook `dex_trades` to ClickHouse. Spot-check 50 swaps against Dune.  
 **[core]** Port Aave V3 + Compound lending spells. Hand-write Morpho decoder.  
 **[core]** `bridge_links` table. Join `V3FundsDeposited` → `FilledV3Relay` via `(originChainId, depositId)`. Validate 50 samples.  
 **[core]** Trajectory primitive v1: `trajectory(entity_id, anchor, window_before, window_after)`. Same-chain only.
+**[core]** **Trending Contracts** — hourly spike detection MV: `COUNT / AVG(COUNT, 7d) > 3` per contract. Base chain first.
 
 **Weekly tests**: Run §1.4 architectural guardrails.
 
-**Deliverable**: Same-chain trajectory queries work.
+**Deliverable**: Same-chain trajectory queries work. First trending contracts flagged on Base.
 
-### 6.5 Week 4 — Cross-chain trajectories + Identity graph v1
+### 6.5 Week 4 — Cross-chain trajectories + Bridge Flow Analytics + Identity graph v1
 
-**Theme**: Cross-chain journeys work. First real BD output.
+**Theme**: Cross-chain journeys work. Bridge Flow Analytics proves the trajectory primitive on real research questions.
 
 **[core]** Cross-chain trajectory: `bridge_out` on chain A + matched `bridge_in` on chain B + next-N events on B.  
+**[core]** **Bridge Flow Analytics** — ClickHouse views for post-bridge behaviour:
+  - Immediate app interactions after `bridge_in`
+  - Swap vs non-swap path classification
+  - 2nd-hop analysis (post-swap behaviour)
+  - 24-hour activity window
 **[core]** BD-facing queries: post-bridge apps, 2nd-hop swap rate, "bridged and idle" rate.  
 **[core]** Extend decoders: Moonwell, friend.tech-era apps, Uniswap V4 hooks.  
 **[core]** `entity_relationships` graph table. ENSNode deployed, nightly ENS + Basenames materialisation.
 
 **Weekly tests**: Run §1.4 architectural guardrails.
 
-**Deliverable**: First bridge-flow CSV to BD. ENS coverage for active wallets.
+**Deliverable**: First bridge-flow CSV to BD. Bridge Flow Analytics dashboard on Observable. ENS coverage for active wallets.
 
-### 6.6 Week 5 — Cross-systems journey tracking (primary) + Onchain expansion (preview)
+### 6.6 Week 5 — Cross-systems journey tracking (primary) + Analytics expansion
 
-**Theme**: Prove the unified-journey thesis. This is the most important week for the 18-month arc.
+**Theme**: Prove the unified-journey thesis. Expand analytics surfaces.
 
 **[core]** GA4 OAuth adapter (read-only) → ingest `session_start`, `pageview` into `canonical_events`.  
 **[core]** PostHog adapter (optional if time) → ingest `pageview`, `$autocapture`.  
@@ -424,10 +430,12 @@ Cross-chain events are joined via `link_key` + `link_key_type` in `canonical_eve
 **[avail]** Unified funnel view: GA4 session → bridge event → swap event for the same entity.  
 **[core]** Preview: ETH → Arbitrum + Optimism via Across. Reverse direction (L2→L1) as preview.  
 **[core]** Preview: LayerZero `guid` linking for Stargate + OFT on Base only.
+**[core]** **Trending Contracts** — daily spike detection MV + protocol classification. Expand to Arbitrum, Optimism.
+**[core]** **Per-App Trajectory** — pilot with top 10 Base apps: pre-journey, post-journey, co-occurrence views.
 
 **Weekly tests**: Run §1.4 architectural guardrails. **This week the fake-integrator test must pass with real Web2 data.**
 
-**Deliverable**: A credible unified-funnel demo (GA4 → bridge → swap) for FastBridge marketing.
+**Deliverable**: A credible unified-funnel demo (GA4 → bridge → swap) for FastBridge marketing. Trending + Per-App views on Observable.
 
 ### 6.7 Week 6 — Activation + Polish
 
@@ -452,13 +460,16 @@ By end of Week 6, the following must be true:
 1. **[avail] Nexus CS surface**: CS team has integrator dashboard with cross-chain trajectories. ≥1 churn-risk signal surfaced and acted upon.
 2. **[avail] FastBridge surface**: Marketing team has seen live unified-funnel demo (GA4 → bridge → swap) and provided written feedback.
 3. **[avail] GTM surface**: BD has closed-loop pipeline with >50 prospects, >10 outreach attempts, conversion attribution running.
-4. **[core] Standalone test passes**: `/core` forks cleanly, runs against synthetic data, executes ingestion + trajectory without `/avail`.
-5. **[core] Fake-integrator test passes**: Simulated Web2 event stream (pageviews + sessions) ingested, normalised, queried via trajectory engine.
-6. **[core] Schema extensibility test passes**: New event type added to `registry.yaml`, picked up by ingestion without adapter-external code changes.
-7. **[core] Performance target**: 30-day trajectory query runs in <2 seconds at Avail's data volume.
-8. **[core] Identity graph**: `wallet → ENS` resolution works. Schema supports `cookie → user_id → email` without migration.
+4. **[core] Analytics — Bridge Flow**: Dashboard answers "What happens after a user bridges to Base?" with immediate apps, swap paths, 2nd hop, 24h activity.
+5. **[core] Analytics — Trending Contracts**: Hourly + daily spike detection running, flagging contracts with >200% increase vs rolling average on Base.
+6. **[core] Analytics — Per-App Trajectory**: Pilot views working for top 10 Base apps showing pre-journey, post-journey, and co-occurrence.
+7. **[core] Standalone test passes**: `/core` forks cleanly, runs against synthetic data, executes ingestion + trajectory without `/avail`.
+8. **[core] Fake-integrator test passes**: Simulated Web2 event stream (pageviews + sessions) ingested, normalised, queried via trajectory engine.
+9. **[core] Schema extensibility test passes**: New event type added to `registry.yaml`, picked up by ingestion without adapter-external code changes.
+10. **[core] Performance target**: 30-day trajectory query runs in <2 seconds at Avail's data volume.
+11. **[core] Identity graph**: `wallet → ENS` resolution works. Schema supports `cookie → user_id → email` without migration.
 
-If any of 1–8 are false, the sprint is not complete.
+If any of 1–11 are false, the sprint is not complete.
 
 ---
 

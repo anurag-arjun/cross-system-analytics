@@ -139,6 +139,65 @@ Phase 1 builds three surfaces on top of the core primitive. Each surface validat
 
 ---
 
+## 3b. Analytics Surfaces (Market Intelligence)
+
+In addition to the three Avail team surfaces, the platform supports **on-demand analytics surfaces** for market intelligence and research. These are used internally by the product team, leadership, and engineering to understand ecosystem dynamics.
+
+### 3b.1 Bridge Flow Analytics
+
+**User**: Product team, leadership, ecosystem research  
+**Problem**: No systematic way to understand what users actually do after they bridge to a new chain. Bridge volume is visible; post-bridge behaviour is a black box.
+
+**Chains**: Ethereum, Base, Arbitrum, Optimism, HyperEVM, MegaETH (Monad and Polygon if data shows opportunity).
+
+**Queries**:
+- What apps did users immediately interact with after bridging to a chain?
+- Actions after a bridge that allow swaps vs. actions that don't allow swaps (check for 2nd hop)
+- What did users do after the bridge (24-hour window)?
+- If they swapped on another app, what did they do after the swap?
+- What apps did users interact with in the next 24 hours after bridging?
+
+**Timeframes**: Last 7 days, last 30 days.
+
+**Success metric**: A dashboard answering "What happens after a user bridges to Base?" with specific app names, transaction counts, and time-to-first-action.
+
+**Why this matters**: Bridge flows reveal which apps are capturing bridged liquidity. This is competitive intelligence for Avail Nexus (which integrators to prioritise) and FastBridge (which post-bridge experiences to promote).
+
+### 3b.2 Trending Contracts / App Activity
+
+**User**: BD, marketing, product research  
+**Problem**: New protocols and apps spike in activity before they appear on anyone's radar. By the time they're on Dune or DefiLlama, the opportunity window is closing.
+
+**Chains**: Ethereum, Base, Arbitrum, Optimism, HyperEVM, MegaETH (Monad and Polygon if data shows opportunity).
+
+**Queries**:
+- What apps/contracts have seen >200-400% increase in hourly interactions/gas paid in the last 24 hours (rolling average)?
+- What apps/contracts have seen >200-400% increase in daily interactions/gas paid in the last 7 days (rolling average)?
+- Breakdown by protocol type (DEX, lending, perps, NFT, gaming)
+
+**Timeframes**: Last 24 hours, last 7 days.
+
+**Success metric**: Weekly "trending apps" report with >80% of spikes detected before they appear on public dashboards.
+
+**Why this matters**: Trending detection is a lead-gen engine. A contract that 10x'd its hourly interactions yesterday is a prospect for Avail Nexus integration today.
+
+### 3b.3 Per-App Trajectory Analysis
+
+**User**: Product team, integrator CS, competitive research  
+**Problem**: Understanding a specific app means more than counting transactions. It means understanding the full user journey around that app.
+
+**Query pattern**: For any app (identified by contract address or protocol name), show:
+- What did users do in the 7 days *before* their first interaction with this app?
+- What did users do in the 7 days *after* their last interaction with this app?
+- What other apps do users of this app also use? (co-occurrence graph)
+- What's the typical time-to-first-action after a user discovers this app?
+
+**Success metric**: For any named app, generate a full-journey report in <30 seconds.
+
+**Why this matters**: This is the trajectory primitive applied to a specific anchor. It turns "how is App X doing?" from a metrics question into a journey question.
+
+---
+
 ## 4. Horizontal Validation (Phase 1 Parallel Track)
 
 While building the three Avail surfaces, run a cheap validation exercise to test the horizontal thesis.
@@ -183,10 +242,21 @@ The horizontal positioning is a 10x better company but a harder narrative. These
 - Heuristic engine + signals inbox
 - CS workflow layer (notes, outreach tracking)
 
-**Month 5**: Surface 2 (FastBridge marketing)
+**Month 3–4**: Surface 1 (Nexus CS tool) + Analytics foundation
+- Integrator directory + behavioural dashboards
+- Bridge linking + cross-chain trajectory queries
+- Heuristic engine + signals inbox
+- CS workflow layer (notes, outreach tracking)
+- **Bridge Flow Analytics** (§3b.1): Post-bridge behaviour on Base, Ethereum
+- **Trending Contracts** (§3b.2): Hourly/daily spike detection on Base
+
+**Month 5**: Surface 2 (FastBridge marketing) + Analytics expansion
 - GA4 + PostHog connectors
 - Identity graph walk: `ga4_client_id → wallet`
 - Unified funnel view + campaign attribution
+- **Bridge Flow Analytics**: Expand to Arbitrum, Optimism
+- **Trending Contracts**: Expand to Arbitrum, Optimism
+- **Per-App Trajectory** (§3b.3): Pilot with top 10 Base apps
 
 **Month 6**: Surface 3 (GTM scoring) + hardening
 - Wallet-level prospect ranking
@@ -194,6 +264,7 @@ The horizontal positioning is a 10x better company but a harder narrative. These
 - Attribution loop
 - `/core` standalone test passes
 - First external-facing blog post (the problem, not the product)
+- **Analytics surfaces**: Weekly automated reports for all three analytics surfaces
 
 **End of Phase 1 criteria**:
 - Three Avail teams use the tool as their daily driver
@@ -295,7 +366,8 @@ These decisions are locked before writing production code. They determine whethe
 - Automated outbound email (tool surfaces signals; humans take actions)
 - Public Exposure Scorecard (Phase 2, Months 7–9)
 - Twenty CRM integration (Month 2+)
-- HyperEVM / Monad / MegaETH / Polygon ingestion (v2)
+- HyperEVM / Monad / MegaETH / Polygon ingestion for canonical events (v2)
+- HyperEVM / MegaETH / Monad analytics surfaces (Month 5+ if initial data shows opportunity)
 - Every protocol under the sun (80% coverage of top 30 is enough)
 
 ---
