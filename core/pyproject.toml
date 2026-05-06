@@ -16,6 +16,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "eth-abi>=5.0",
     "dagster>=1.7",
+    "psycopg2-binary>=2.9",
 ]
 
 [project.optional-dependencies]
