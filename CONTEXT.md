@@ -31,6 +31,16 @@
 | **Canonical Bridge** | The native bridge built into an L2's architecture. Funds are locked in an L1 escrow contract and minted on L2 (or burned on L2 and released on L1). Matching is via withdrawal hash or message nonce. Examples: OP Stack, Arbitrum Nitro. |
 | **Endpoint ID (eid)** | LayerZero's chain identifier. NOT the same as `chain_id`. E.g., Ethereum mainnet = 30101, Base = 30184. Required for Stargate/LayerZero event matching. |
 
+Full EID mapping:
+```
+ethereum:  eid=30101  chain_id=1
+base:      eid=30184  chain_id=8453
+arbitrum:  eid=30110  chain_id=42161
+optimism:  eid=30111  chain_id=10
+polygon:   eid=30109  chain_id=137
+avalanche: eid=30106  chain_id=43114
+```
+
 ### Query Patterns
 
 | Term | Definition |
