@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import hashlib
 import os
 from datetime import datetime, timezone
@@ -18,6 +19,21 @@ from core.adapters.evm.decoders import DecodedEvent, LogDecoder
 from core.adapters.evm.registry import DecoderRegistry, build_default_registry
 
 load_dotenv()
+
+
+def _run_coro(coro):
+    """Run a coroutine safely from both sync and async contexts.
+
+    asyncio.run() raises RuntimeError when called from inside a running
+    event loop (e.g. Jupyter, async tests, nested asyncio.run calls).
+    We detect that case and run the coroutine in a background thread.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, coro).result()
 
 
 class JsonRpcClient:
@@ -130,7 +146,8 @@ class EVMAdapter(Adapter):
         if self._hyper is None:
             cfg = hypersync.ClientConfig(
                 url=self.hyper_url,
-                bearer_token=self.hyper_token,
+                api_token=self.hyper_token,
+                proactive_rate_limit_sleep=True,
             )
             self._hyper = hypersync.HypersyncClient(cfg)
         return self._hyper
@@ -188,7 +205,7 @@ class EVMAdapter(Adapter):
         end: datetime,
         addresses: list[str] | str | None = None,
     ) -> Iterator[dict[str, Any]]:
-        return iter(asyncio.run(self._ingest_raw_hypersync_async(start, end, addresses)))
+        return iter(_run_coro(self._ingest_raw_hypersync_async(start, end, addresses)))
 
     async def _ingest_raw_hypersync_async(
         self,
@@ -211,30 +228,41 @@ class EVMAdapter(Adapter):
             addr_list = [addresses] if isinstance(addresses, str) else addresses
             log_selection.address = addr_list
 
-        query = hypersync.Query(
-            from_block=start_block,
-            to_block=end_block,
-            logs=[log_selection],
-            field_selection=hypersync.FieldSelection(
-                log=[
-                    "address",
-                    "topic0",
-                    "topic1",
-                    "topic2",
-                    "topic3",
-                    "data",
-                    "block_number",
-                    "transaction_hash",
-                    "log_index",
-                ],
-                block=["number", "timestamp"],
-            ),
-        )
-
         results: list[dict[str, Any]] = []
         block_ts_map: dict[int, datetime] = {}
+        current_block = start_block
 
-        while True:
+        # Paginate in chunks to stay within free-tier rate limits
+        BLOCK_CHUNK_SIZE = 100
+        MAX_LOGS_PER_QUERY = 50000
+
+        while current_block < end_block:
+            chunk_end = min(current_block + BLOCK_CHUNK_SIZE, end_block)
+
+            await client.wait_for_rate_limit()
+
+            query = hypersync.Query(
+                from_block=current_block,
+                to_block=chunk_end,
+                max_num_blocks=BLOCK_CHUNK_SIZE,
+                max_num_logs=MAX_LOGS_PER_QUERY,
+                logs=[log_selection],
+                field_selection=hypersync.FieldSelection(
+                    log=[
+                        "address",
+                        "topic0",
+                        "topic1",
+                        "topic2",
+                        "topic3",
+                        "data",
+                        "block_number",
+                        "transaction_hash",
+                        "log_index",
+                    ],
+                    block=["number", "timestamp"],
+                ),
+            )
+
             resp = await client.get(query)
             for log in resp.data.logs:
                 block_number = log.block_number
@@ -263,9 +291,7 @@ class EVMAdapter(Adapter):
                     )
                 )
 
-            if resp.next_block >= end_block:
-                break
-            query.from_block = resp.next_block
+            current_block = resp.next_block if resp.next_block < end_block else end_block
 
         return results
 
@@ -364,7 +390,7 @@ class EVMAdapter(Adapter):
         end: datetime,
         addresses: list[str] | str | None = None,
     ) -> Iterator[CanonicalEvent]:
-        return iter(asyncio.run(self._ingest_hypersync_async(start, end, addresses)))
+        return iter(_run_coro(self._ingest_hypersync_async(start, end, addresses)))
 
     async def _ingest_hypersync_async(
         self,
@@ -388,29 +414,40 @@ class EVMAdapter(Adapter):
             addr_list = [addresses] if isinstance(addresses, str) else addresses
             log_selection.address = addr_list
 
-        query = hypersync.Query(
-            from_block=start_block,
-            to_block=end_block,
-            logs=[log_selection],
-            field_selection=hypersync.FieldSelection(
-                log=[
-                    "address",
-                    "topic0",
-                    "topic1",
-                    "topic2",
-                    "data",
-                    "block_number",
-                    "transaction_hash",
-                    "log_index",
-                ],
-                block=["number", "timestamp"],
-            ),
-        )
-
         results: list[CanonicalEvent] = []
         block_ts_map: dict[int, datetime] = {}
+        current_block = start_block
 
-        while True:
+        # Paginate in chunks to stay within free-tier rate limits
+        BLOCK_CHUNK_SIZE = 100
+        MAX_LOGS_PER_QUERY = 50000
+
+        while current_block < end_block:
+            chunk_end = min(current_block + BLOCK_CHUNK_SIZE, end_block)
+
+            await client.wait_for_rate_limit()
+
+            query = hypersync.Query(
+                from_block=current_block,
+                to_block=chunk_end,
+                max_num_blocks=BLOCK_CHUNK_SIZE,
+                max_num_logs=MAX_LOGS_PER_QUERY,
+                logs=[log_selection],
+                field_selection=hypersync.FieldSelection(
+                    log=[
+                        "address",
+                        "topic0",
+                        "topic1",
+                        "topic2",
+                        "data",
+                        "block_number",
+                        "transaction_hash",
+                        "log_index",
+                    ],
+                    block=["number", "timestamp"],
+                ),
+            )
+
             resp = await client.get(query)
             for log in resp.data.logs:
                 topic0 = log.topics[0] if log.topics else None
@@ -443,9 +480,7 @@ class EVMAdapter(Adapter):
                     continue
                 results.append(self._to_canonical(decoded))
 
-            if resp.next_block >= end_block:
-                break
-            query.from_block = resp.next_block
+            current_block = resp.next_block if resp.next_block < end_block else end_block
 
         return results
 
@@ -490,6 +525,17 @@ class EVMAdapter(Adapter):
             raise ValueError("Decoding returned None")
         return self._to_canonical(decoded)
 
+    async def close_async(self) -> None:
+        """Close HyperSync client (async)."""
+        if self._hyper is not None:
+            try:
+                await self._hyper.close()
+            except Exception:
+                pass
+        self._hyper = None
+        self.close()
+
     def close(self) -> None:
         if self._rpc is not None:
             self._rpc.close()
+        self._rpc = None

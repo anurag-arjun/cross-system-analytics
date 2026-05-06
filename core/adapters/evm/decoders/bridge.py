@@ -159,6 +159,124 @@ class BaseETHBridgeInitiatedDecoder(LogDecoder):
         )
 
 
+class AcrossV3FilledRelayDecoder(LogDecoder):
+    """Across V3 FilledV3Relay — bridge-in event on destination chain."""
+
+    @property
+    def topic0(self) -> str:
+        return "0xb553cf4433b697c1ab9b28c8a3ffefbd12e812ff58d5199aba60b3e6df7f38e3"
+
+    @property
+    def event_signature(self) -> str:
+        return "FilledV3Relay(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount, uint256 indexed repaymentChainId, uint256 indexed originChainId, uint32 indexed depositId, uint32 fillDeadline, uint32 exclusivityDeadline, address exclusiveRelayer, address relayer, address depositor, address recipient, bytes message)"
+
+    @property
+    def protocol(self) -> str:
+        return "across"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        repayment_chain_id = int(topics[1], 16)
+        origin_chain_id = int(topics[2], 16)
+        deposit_id = int(topics[3], 16)
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(
+            data,
+            [
+                "address", "address", "uint256", "uint256",
+                "uint32", "uint32", "uint32",
+                "address", "address", "address", "address", "bytes",
+            ],
+        )
+        input_token = vals[0]
+        output_token = vals[1]
+        input_amount = Decimal(vals[2])
+        output_amount = Decimal(vals[3])
+        relayer = vals[7]
+        depositor = vals[9]
+        recipient = vals[10]
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=recipient,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            token_in=input_token,
+            token_out=output_token,
+            amount_in=input_amount,
+            amount_out=output_amount,
+            counterparty=relayer,
+            link_key=str(deposit_id),
+            link_key_type="across_deposit_id",
+            extra={
+                "origin_chain_id": origin_chain_id,
+                "repayment_chain_id": repayment_chain_id,
+                "deposit_id": deposit_id,
+                "depositor": depositor,
+                "recipient": recipient,
+                "relayer": relayer,
+            },
+        )
+
+
+class StargateReceiveFromChainDecoder(LogDecoder):
+    """Stargate v2 ReceiveFromChain — bridge-in event on destination chain."""
+
+    @property
+    def topic0(self) -> str:
+        return "0x3f25d151146756967e776269c39767851a59ad8c562b8f74083801d8b0e3a2ac"
+
+    @property
+    def event_signature(self) -> str:
+        return "ReceiveFromChain(uint16 srcEid, uint256 sender, address receiver, uint256 amount, bytes message)"
+
+    @property
+    def protocol(self) -> str:
+        return "stargate"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 1:
+            return None
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["uint16", "uint256", "address", "uint256", "bytes"])
+        src_eid = vals[0]
+        sender = vals[1]
+        receiver = vals[2]
+        amount = Decimal(vals[3])
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=receiver,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            amount_in=amount,
+            counterparty=sender,
+            link_key=str(src_eid),
+            link_key_type="stargate_src_eid",
+            extra={
+                "src_eid": src_eid,
+                "sender": str(sender),
+                "receiver": receiver,
+                "amount": str(amount),
+            },
+        )
+
+
 class BaseERC20BridgeInitiatedDecoder(LogDecoder):
     @property
     def topic0(self) -> str:
