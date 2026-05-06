@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 @dataclass
@@ -27,13 +31,21 @@ CHAIN_TO_PLATFORM = {
 
 
 class CoinGeckoPriceAdapter:
-    def __init__(self, endpoint: str = "https://api.coingecko.com/api/v3") -> None:
+    def __init__(
+        self,
+        endpoint: str = "https://api.coingecko.com/api/v3",
+        api_key: str | None = None,
+    ) -> None:
         self.endpoint = endpoint
+        self.api_key = api_key or os.getenv("COINGECKO_API_KEY")
         self._client: httpx.Client | None = None
 
     def _ensure_client(self) -> httpx.Client:
         if self._client is None:
-            self._client = httpx.Client(timeout=30.0)
+            headers: dict[str, str] = {}
+            if self.api_key:
+                headers["x-cg-demo-api-key"] = self.api_key
+            self._client = httpx.Client(timeout=30.0, headers=headers)
         return self._client
 
     def fetch_prices(
