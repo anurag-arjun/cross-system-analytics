@@ -123,5 +123,6 @@ class TestEventToRow:
     def test_decimal_fields(self):
         ev = _make_event(amount_in=Decimal("1.5"), amount_out=Decimal("2.0"))
         row = _event_to_row(ev)
-        assert row[17] == Decimal("1.5")
-        assert row[18] == Decimal("2.0")
+        # _event_to_row converts Decimals to strings for ClickHouse insertion
+        assert row[17] == "1.5"
+        assert row[18] == "2.0"

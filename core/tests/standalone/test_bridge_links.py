@@ -123,6 +123,7 @@ class TestBridgeLinkEngine:
             {
                 "event_type": "bridge_out",
                 "link_key": "key1",
+                "link_key_type": "across_deposit_id",
                 "chain": "base",
                 "timestamp": datetime.now(timezone.utc),
                 "tx_hash": "0xabc",
@@ -135,6 +136,7 @@ class TestBridgeLinkEngine:
             {
                 "event_type": "bridge_in",
                 "link_key": "key1",
+                "link_key_type": "across_deposit_id",
                 "chain": "ethereum",
                 "timestamp": datetime.now(timezone.utc),
                 "tx_hash": "0xdef",

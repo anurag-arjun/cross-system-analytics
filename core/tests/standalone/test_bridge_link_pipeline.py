@@ -81,7 +81,7 @@ def test_bridge_link_with_real_clickhouse():
     from clickhouse_connect import get_client
 
     try:
-        client = get_client(host="localhost", port=8124, username="default", password="nexus")
+        client = get_client(host="localhost", port=8124, username="default", password="nexus", database="nexus")
         client.command("SELECT 1")
     except Exception:
         pytest.skip("ClickHouse not available")
@@ -93,6 +93,9 @@ def test_bridge_link_with_real_clickhouse():
     ins = [
         _make_bridge_event("bridge_in", "deposit_test", "ethereum", "0xdef", "0xuser"),
     ]
+
+    # Clean up any leftover data from previous failed runs
+    client.command("DELETE FROM bridge_links WHERE link_key = 'deposit_test'")
 
     matched = engine.match_batch(outs, ins)
 
@@ -108,7 +111,7 @@ def test_bridge_link_with_real_clickhouse():
     assert row[0] == "deposit_test"
     assert row[1] == "base"
     assert row[2] == "ethereum"
-    assert row[3] == 5000
+    assert row[3] == "5000"  # stored as String in ClickHouse
 
     client.command("DELETE FROM bridge_links WHERE link_key = 'deposit_test'")
     client.close()
