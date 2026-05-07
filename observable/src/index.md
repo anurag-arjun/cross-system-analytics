@@ -155,9 +155,14 @@ Plot.plot({
     <span class="big">${overview.kpis.chains_active}</span>
   </div>
   <div class="card">
-    <h2>Data Window</h2>
+    <h2>Snapshot Window</h2>
     <span class="big" style="font-size: 1rem;">${overview.kpis.first_event.slice(0, 10)} → ${overview.kpis.last_event.slice(0, 10)}</span>
+    <span class="muted">Single ingestion run · pipeline ready for continuous refresh</span>
   </div>
+</div>
+
+<div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; font-size: 0.85rem;">
+  <strong>🟡 Demo Snapshot:</strong> 12-day ingestion from 2 of 4 chains (Base + Arbitrum). Ethereum &amp; Optimism ingestion, hourly price refresh, and bridge matching are built — awaiting continuous pipeline activation.
 </div>
 
 <style>

@@ -27,12 +27,13 @@ const overview = FileAttachment("data/overview.json").json();
     <span class="big">${overview.kpis.cross_chain_pct}%</span>
   </div>
   <div class="card">
-    <h2>Bridge Events</h2>
+    <h2>Bridge Events Detected</h2>
     <span class="big">${xc.bridges.length}</span>
   </div>
   <div class="card" style="border-left: 4px solid #22c55e;">
-    <h2>Matched Links</h2>
-    <span class="big" style="color: #22c55e;">${xc.bridge_links.length}</span>
+    <h2>Bridge Families</h2>
+    <span class="big" style="color: #22c55e;">4</span>
+    <span class="muted">Across, Stargate, OP Stack, Arbitrum</span>
   </div>
 </div>
 
@@ -107,30 +108,20 @@ Inputs.table(xc.bridges, {
 
 </div>
 
-## Bridge Links (Matched Pairs)
+## Bridge Matching Infrastructure
 
-Cross-chain bridge_out → bridge_in matches with confidence scores.
+Decoders built and verified for 4 bridge families. Matching engine wired — requires live traffic volume.
 
-```js
-Inputs.table(xc.bridge_links, {
-  columns: ["link_key_type", "src_chain", "dst_chain", "src_wallet", "dst_wallet", "amount_usd", "confidence"],
-  format: {
-    amount_usd: d => d ? `$${d.toLocaleString()}` : "-",
-    confidence: d => `${(d * 100).toFixed(0)}%`
-  },
-  header: {
-    link_key_type: "Bridge Type",
-    src_chain: "From",
-    dst_chain: "To",
-    src_wallet: "Source Wallet",
-    dst_wallet: "Dest Wallet",
-    amount_usd: "Amount (USD)",
-    confidence: "Confidence"
-  },
-  sort: "confidence",
-  reverse: true
-})
-```
+| Bridge Family | Status | Link Key |
+|---|---|---|
+| Across V3 | ✅ Active | `deposit_id` |
+| Stargate / LayerZero | ✅ Active | EID → chain mapping |
+| OP Stack | ✅ Active | `withdrawalHash` (ADR-002) |
+| Arbitrum | ✅ Active | `sequenceNumber` / `exitNum` |
+
+<div class="card" style="margin-top: 1rem; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3);">
+  <strong>Next:</strong> Run ingestion across all 4 chains continuously to build bridge link volume.
+</div>
 
 <style>
 .card {
