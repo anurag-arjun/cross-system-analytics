@@ -40,7 +40,9 @@ class MockClickHouseClient:
         chain = params.get("chain")
         exclude_event = params.get("exclude_event")
         event_type = params.get("event_type")
+        protocol = params.get("protocol")
         single_col = "SELECT timestamp" in sql
+        sort_desc = "ORDER BY timestamp DESC" in sql
 
         rows = []
         for ev in self.events:
@@ -56,6 +58,8 @@ class MockClickHouseClient:
                 continue
             if event_type and ev.event_type != event_type:
                 continue
+            if protocol and ev.protocol != protocol:
+                continue
             if not self._passes_filters(ev, sql, params):
                 continue
             if single_col:
@@ -64,7 +68,7 @@ class MockClickHouseClient:
                 rows.append(_event_to_row(ev))
 
         if single_col:
-            rows.sort(key=lambda r: r[0], reverse=True)
+            rows.sort(key=lambda r: r[0], reverse=sort_desc)
         else:
             rows.sort(key=lambda r: r[5])
         return MockQueryResult(rows)
@@ -331,6 +335,313 @@ class TestTrajectoryEngineQuery:
             entity_type="ens",
         )
         assert result == []
+
+
+class TestTrajectoryEngineOmnichain:
+    def test_merges_events_from_multiple_chains(self):
+        """Wallet with events on Base + Ethereum returns merged timeline."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        anchor = _make_event(
+            entity_id="0xaaa",
+            event_id="anchor",
+            event_type="swap",
+            timestamp=base_time,
+            chain="base",
+        )
+        base_event = _make_event(
+            entity_id="0xaaa",
+            event_id="base_before",
+            event_type="transfer_out",
+            timestamp=base_time - timedelta(hours=2),
+            chain="base",
+        )
+        eth_event = _make_event(
+            entity_id="0xaaa",
+            event_id="eth_after",
+            event_type="bridge_in",
+            timestamp=base_time + timedelta(hours=1),
+            chain="ethereum",
+        )
+
+        client = MockClickHouseClient(events=[anchor, base_event, eth_event])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="swap",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=2),
+        )
+
+        event_ids = [e.event_id for e in result]
+        chains = [e.chain for e in result]
+        assert event_ids == ["base_before", "anchor", "eth_after"]
+        assert chains == ["base", "base", "ethereum"]
+
+    def test_global_timestamp_ordering(self):
+        """Events ordered by timestamp globally, not per-chain."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        anchor = _make_event(
+            entity_id="0xaaa",
+            event_id="anchor",
+            event_type="swap",
+            timestamp=base_time,
+            chain="base",
+        )
+        # Deliberately interleaved across chains
+        eth_first = _make_event(
+            entity_id="0xaaa",
+            event_id="eth_first",
+            event_type="bridge_in",
+            timestamp=base_time - timedelta(hours=3),
+            chain="ethereum",
+        )
+        base_second = _make_event(
+            entity_id="0xaaa",
+            event_id="base_second",
+            event_type="transfer_out",
+            timestamp=base_time - timedelta(hours=1),
+            chain="base",
+        )
+        eth_last = _make_event(
+            entity_id="0xaaa",
+            event_id="eth_last",
+            event_type="swap",
+            timestamp=base_time + timedelta(hours=2),
+            chain="ethereum",
+        )
+
+        client = MockClickHouseClient(events=[anchor, eth_first, base_second, eth_last])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="swap",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=2),
+        )
+
+        event_ids = [e.event_id for e in result]
+        assert event_ids == ["eth_first", "base_second", "anchor", "eth_last"]
+
+    def test_protocol_aware_anchor(self):
+        """Anchor found by event_type + protocol, across all chains."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Same entity has swaps on aerodrome (base) and uniswap_v3 (ethereum)
+        aerodrome_swap = _make_event(
+            entity_id="0xaaa",
+            event_id="aerodrome_anchor",
+            event_type="swap",
+            protocol="aerodrome",
+            timestamp=base_time,
+            chain="base",
+        )
+        uniswap_swap = _make_event(
+            entity_id="0xaaa",
+            event_id="uniswap_old",
+            event_type="swap",
+            protocol="uniswap_v3",
+            timestamp=base_time - timedelta(days=10),
+            chain="ethereum",
+        )
+        before = _make_event(
+            entity_id="0xaaa",
+            event_id="before",
+            event_type="transfer_in",
+            timestamp=base_time - timedelta(hours=1),
+            chain="ethereum",
+        )
+        after = _make_event(
+            entity_id="0xaaa",
+            event_id="after",
+            event_type="bridge_out",
+            timestamp=base_time + timedelta(hours=1),
+            chain="base",
+        )
+
+        client = MockClickHouseClient(events=[aerodrome_swap, uniswap_swap, before, after])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="swap",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=2),
+            anchor_protocol="aerodrome",
+        )
+
+        event_ids = [e.event_id for e in result]
+        # Should anchor on the aerodrome swap, window includes before+after
+        assert event_ids == ["before", "aerodrome_anchor", "after"]
+
+    def test_first_interaction_mode(self):
+        """First-interaction uses MIN timestamp for anchor."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        first = _make_event(
+            entity_id="0xaaa",
+            event_id="first_swap",
+            event_type="swap",
+            protocol="aerodrome",
+            timestamp=base_time - timedelta(days=30),
+            chain="base",
+        )
+        latest = _make_event(
+            entity_id="0xaaa",
+            event_id="latest_swap",
+            event_type="swap",
+            protocol="aerodrome",
+            timestamp=base_time,
+            chain="base",
+        )
+        after_first = _make_event(
+            entity_id="0xaaa",
+            event_id="after_first",
+            event_type="transfer_out",
+            timestamp=base_time - timedelta(days=29),
+            chain="base",
+        )
+
+        client = MockClickHouseClient(events=[first, latest, after_first])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="swap",
+            window_before=timedelta(days=1),
+            window_after=timedelta(days=10),
+            anchor_protocol="aerodrome",
+            first_interaction=True,
+        )
+
+        event_ids = [e.event_id for e in result]
+        # first_swap is the anchor, after_first falls within window
+        assert "first_swap" in event_ids
+        assert "after_first" in event_ids
+        # latest_swap should NOT be in window (30 days after anchor, outside 10-day after)
+        assert "latest_swap" not in event_ids
+
+    def test_first_interaction_cross_chain(self):
+        """First-interaction anchor finds the earliest across all chains."""
+        base_first = _make_event(
+            entity_id="0xaaa",
+            event_id="eth_first_swap",
+            event_type="swap",
+            timestamp=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            chain="ethereum",
+        )
+        base_later = _make_event(
+            entity_id="0xaaa",
+            event_id="base_second_swap",
+            event_type="swap",
+            timestamp=datetime(2024, 1, 10, 12, 0, 0, tzinfo=timezone.utc),
+            chain="base",
+        )
+        around = _make_event(
+            entity_id="0xaaa",
+            event_id="around_first",
+            event_type="transfer_in",
+            timestamp=datetime(2024, 1, 2, 12, 0, 0, tzinfo=timezone.utc),
+            chain="base",
+        )
+
+        client = MockClickHouseClient(events=[base_first, base_later, around])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="swap",
+            window_before=timedelta(days=1),
+            window_after=timedelta(days=5),
+            first_interaction=True,
+        )
+
+        event_ids = [e.event_id for e in result]
+        assert event_ids[0] == "eth_first_swap"
+        assert "around_first" in event_ids
+        assert "base_second_swap" not in event_ids
+
+    def test_no_anchor_returns_empty(self):
+        """Omnichain returns empty when no matching anchor exists."""
+        client = MockClickHouseClient(events=[])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="bridge_out",
+            window_before=timedelta(days=7),
+            window_after=timedelta(days=7),
+        )
+        assert result == []
+
+    def test_exclude_anchor(self):
+        """Omnichain respects include_anchor=False."""
+        anchor = _make_event(
+            entity_id="0xaaa",
+            event_id="anchor",
+            event_type="bridge_out",
+            timestamp=datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
+            chain="base",
+        )
+        other = _make_event(
+            entity_id="0xaaa",
+            event_id="other",
+            event_type="swap",
+            timestamp=datetime(2024, 1, 15, 11, 0, 0, tzinfo=timezone.utc),
+            chain="ethereum",
+        )
+
+        client = MockClickHouseClient(events=[anchor, other])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_omnichain(
+            entity_id="0xaaa",
+            anchor_event="bridge_out",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=2),
+            include_anchor=False,
+        )
+
+        assert len(result) == 1
+        assert result[0].event_id == "other"
+
+    def test_identity_graph_resolution(self):
+        """Omnichain resolves non-wallet entity types via identity graph."""
+        graph = IdentityGraph()
+        graph.add_relationship(
+            from_entity="vitalik.eth",
+            from_type="ens",
+            to_entity="0xabc",
+            to_type="wallet",
+            relationship_type="resolved_to",
+            confidence=0.95,
+            source="ens",
+        )
+
+        anchor = _make_event(
+            entity_id="0xabc",
+            event_id="anchor",
+            event_type="bridge_out",
+            timestamp=datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
+            chain="ethereum",
+        )
+        other = _make_event(
+            entity_id="0xabc",
+            event_id="other",
+            event_type="swap",
+            timestamp=datetime(2024, 1, 14, 12, 0, 0, tzinfo=timezone.utc),
+            chain="base",
+        )
+
+        client = MockClickHouseClient(events=[anchor, other])
+        engine = TrajectoryEngine(clickhouse_client=client, identity_graph=graph)
+        result = engine.query_omnichain(
+            entity_id="vitalik.eth",
+            anchor_event="bridge_out",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=2),
+            entity_type="ens",
+        )
+
+        assert len(result) == 2
+        assert {e.event_id for e in result} == {"anchor", "other"}
+        assert {e.chain for e in result} == {"ethereum", "base"}
 
 
 class TestTrajectoryEngineCrossChain:

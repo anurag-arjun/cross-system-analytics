@@ -60,6 +60,62 @@ class TrajectoryEngine:
         )
         return [_row_to_event(row) for row in rows]
 
+    def query_omnichain(
+        self,
+        entity_id: str,
+        anchor_event: str,
+        window_before: timedelta,
+        window_after: timedelta,
+        entity_type: str = "wallet",
+        anchor_protocol: str | None = None,
+        first_interaction: bool = False,
+        filters: Optional[List[Filter]] = None,
+        include_anchor: bool = True,
+    ) -> List[CanonicalEvent]:
+        """Fetch all events for a wallet across ALL chains in a time window
+        around an anchor event. Does not require bridge linking.
+
+        Args:
+            entity_id: Wallet address or other entity identifier.
+            anchor_event: Event type to anchor on (e.g. 'swap', 'bridge_out').
+            window_before: How far before the anchor to include.
+            window_after: How far after the anchor to include.
+            entity_type: Type of entity_id (default 'wallet').
+            anchor_protocol: If set, filter the anchor to this protocol
+                (protocol-aware anchor).
+            first_interaction: If True, use the FIRST occurrence (MIN timestamp)
+                instead of the most recent (MAX).
+            filters: Optional list of Filter objects applied to window events.
+            include_anchor: Include the anchor event itself in results.
+
+        Returns:
+            Events from all chains merged and sorted by timestamp globally.
+        """
+        if self.client is None:
+            return []
+
+        resolved_id = self._resolve_to_wallet(entity_id, entity_type)
+        if resolved_id is None:
+            return []
+
+        anchor_ts = self._find_anchor_timestamp(
+            resolved_id,
+            anchor_event,
+            anchor_protocol=anchor_protocol,
+            first_interaction=first_interaction,
+        )
+        if anchor_ts is None:
+            return []
+
+        rows = self._query_window(
+            resolved_id,
+            anchor_ts - window_before,
+            anchor_ts + window_after,
+            anchor_event if not include_anchor else None,
+            filters,
+        )
+        return [_row_to_event(row) for row in rows]
+
     def query_cross_chain(
         self,
         entity_id: str,
@@ -108,18 +164,29 @@ class TrajectoryEngine:
         all_events.sort(key=lambda e: e.timestamp)
         return all_events
 
-    def _find_anchor_timestamp(self, entity_id: str, anchor_event: str) -> Any:
-        sql = """
-            SELECT timestamp
-            FROM canonical_events
-            WHERE entity_id = {entity_id:String}
-              AND event_type = {event_type:String}
-            ORDER BY timestamp DESC
-            LIMIT 1
-        """
-        result = self.client.query(
-            sql, parameters={"entity_id": entity_id, "event_type": anchor_event}
+    def _find_anchor_timestamp(
+        self,
+        entity_id: str,
+        anchor_event: str,
+        anchor_protocol: str | None = None,
+        first_interaction: bool = False,
+    ) -> Any:
+        order_clause = "ASC" if first_interaction else "DESC"
+        sql = (
+            "SELECT timestamp FROM canonical_events"
+            " WHERE entity_id = {entity_id:String}"
+            " AND event_type = {event_type:String}"
         )
+        params: dict[str, Any] = {
+            "entity_id": entity_id,
+            "event_type": anchor_event,
+        }
+        if anchor_protocol:
+            sql += " AND protocol = {protocol:String}"
+            params["protocol"] = anchor_protocol
+        sql += f" ORDER BY timestamp {order_clause} LIMIT 1"
+
+        result = self.client.query(sql, parameters=params)
         if not result.result_rows:
             return None
         return result.result_rows[0][0]
