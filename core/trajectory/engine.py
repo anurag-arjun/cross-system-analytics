@@ -116,6 +116,120 @@ class TrajectoryEngine:
         )
         return [_row_to_event(row) for row in rows]
 
+    def query_bridge_following(
+        self,
+        entity_id: str,
+        window_before: timedelta,
+        window_after: timedelta,
+        entity_type: str = "wallet",
+        bridge_protocol: str | None = None,
+        filters: Optional[List[Filter]] = None,
+    ) -> List[CanonicalEvent]:
+        """Follow a bridge_out to the destination chain for a contiguous
+        cross-chain timeline.  The anchor is always the most recent bridge_out.
+
+        Returns events in temporal order:
+          source-chain pre-bridge → bridge_out → bridge_in → dest-chain post-bridge
+
+        Args:
+            entity_id: Wallet address or other entity identifier.
+            window_before: How far before the bridge_out to include on source chain.
+            window_after: How far after the bridge_out to include on
+                destination chain (measured from bridge_out time, not bridge_in).
+            entity_type: Type of entity_id (default 'wallet').
+            bridge_protocol: If set, anchor on bridge_out from this specific
+                protocol (e.g. 'across', 'stargate').
+            filters: Optional list of Filter objects (applied to source chain
+                events only).
+
+        Returns:
+            Contiguous cross-chain timeline, or source-only events if the bridge
+            link is not yet matched.
+        """
+        if self.client is None:
+            return []
+
+        resolved_id = self._resolve_to_wallet(entity_id, entity_type)
+        if resolved_id is None:
+            return []
+
+        # Find the most recent bridge_out anchor
+        anchor_ts = self._find_anchor_timestamp(
+            resolved_id, "bridge_out",
+            anchor_protocol=bridge_protocol,
+        )
+        if anchor_ts is None:
+            return []
+
+        # Get source chain events: pre-bridge window up to (and including) bridge_out
+        source_rows = self._query_window(
+            resolved_id,
+            anchor_ts - window_before,
+            anchor_ts,
+            exclude_event=None,
+            filters=filters,
+        )
+        source_events = [_row_to_event(r) for r in source_rows]
+
+        if not source_events:
+            return []
+
+        # Extract the bridge_out event (last in the window by timestamp)
+        bridge_out = None
+        for ev in reversed(source_events):
+            if ev.event_type == "bridge_out" and ev.link_key:
+                bridge_out = ev
+                break
+
+        if bridge_out is None:
+            return source_events
+
+        # Resolve the bridge link to find bridge_in on destination chain
+        link_sql = """
+            SELECT dst_chain, dst_entity_id, dst_block_time, dst_event_id
+            FROM bridge_links
+            WHERE link_key = {link_key:String}
+              AND link_key_type = {link_key_type:String}
+              AND src_entity_id = {entity_id:String}
+            LIMIT 1
+        """
+        link_result = self.client.query(
+            link_sql,
+            parameters={
+                "link_key": bridge_out.link_key,
+                "link_key_type": bridge_out.link_key_type,
+                "entity_id": resolved_id,
+            },
+        )
+
+        if not link_result.result_rows:
+            return source_events
+
+        dst_chain, dst_entity_id, bridge_in_ts, dst_event_id = link_result.result_rows[0]
+
+        if not dst_entity_id:
+            return source_events
+
+        # Get destination chain events from bridge_in time onward
+        dest_rows = self._query_dst_chain_events(
+            dst_entity_id,
+            dst_chain,
+            bridge_in_ts,
+            anchor_ts + window_after,
+        )
+        dest_events = [_row_to_event(r) for r in dest_rows]
+
+        # Merge: source events + dest events, deduplicate, sort by timestamp
+        all_events = list(source_events)
+        seen = {e.event_id for e in all_events}
+        for ev in dest_events:
+            if ev.event_id not in seen:
+                all_events.append(ev)
+                seen.add(ev.event_id)
+
+        all_events.sort(key=lambda e: e.timestamp)
+        return all_events
+
     def query_cross_chain(
         self,
         entity_id: str,

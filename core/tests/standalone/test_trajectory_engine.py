@@ -103,6 +103,20 @@ class MockClickHouseClient:
         return fields
 
     def _query_bridge_links(self, sql: str, params: dict) -> MockQueryResult:
+        # Single link_key query (query_bridge_following)
+        single_key = params.get("link_key")
+        if single_key:
+            link_key_type = params.get("link_key_type", "")
+            entity_id = params.get("entity_id")
+            # bridge_link format: (link_key, dst_chain, dst_entity_id, dst_block_time, src_entity_id, ...)
+            for row in self.bridge_links:
+                if row[0] == single_key and row[4] == entity_id:
+                    # Return: dst_chain, dst_entity_id, dst_block_time, dst_event_id
+                    dst_event_id = row[7] if len(row) > 7 else ""
+                    return MockQueryResult([(row[1], row[2], row[3], dst_event_id)])
+            return MockQueryResult([])
+
+        # Array link_keys query (query_cross_chain)
         link_keys = set(params.get("link_keys", []))
         entity_id = params.get("entity_id")
         rows = [row[:4] for row in self.bridge_links if row[0] in link_keys and row[4] == entity_id]
@@ -642,6 +656,264 @@ class TestTrajectoryEngineOmnichain:
         assert len(result) == 2
         assert {e.event_id for e in result} == {"anchor", "other"}
         assert {e.chain for e in result} == {"ethereum", "base"}
+
+
+class TestTrajectoryEngineBridgeFollowing:
+    def test_contiguous_cross_chain_timeline(self):
+        """Source pre-bridge → bridge_out → bridge_in → dest post-bridge."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        bridge_in_time = base_time + timedelta(minutes=5)
+
+        # Source chain events (Base)
+        pre_swap = _make_event(
+            entity_id="0xaaa",
+            event_id="pre_swap",
+            event_type="swap",
+            timestamp=base_time - timedelta(hours=1),
+            chain="base",
+        )
+        bridge_out = _make_event(
+            entity_id="0xaaa",
+            event_id="bridge_out_ev",
+            event_type="bridge_out",
+            timestamp=base_time,
+            chain="base",
+            link_key="dep_123",
+            link_key_type="across_deposit_id",
+        )
+
+        # Destination chain events (Ethereum)
+        bridge_in = _make_event(
+            entity_id="0xbbb",
+            event_id="bridge_in_ev",
+            event_type="bridge_in",
+            timestamp=bridge_in_time,
+            chain="ethereum",
+        )
+        post_swap = _make_event(
+            entity_id="0xbbb",
+            event_id="post_swap",
+            event_type="swap",
+            timestamp=bridge_in_time + timedelta(minutes=5),
+            chain="ethereum",
+        )
+        # Outside window (too far after)
+        late_event = _make_event(
+            entity_id="0xbbb",
+            event_id="late",
+            event_type="swap",
+            timestamp=base_time + timedelta(days=2),
+            chain="ethereum",
+        )
+
+        bridge_link = (
+            "dep_123",           # link_key
+            "ethereum",           # dst_chain
+            "0xbbb",              # dst_entity_id
+            bridge_in_time,        # dst_block_time
+            "0xaaa",              # src_entity_id
+            "",                   # (unused)
+            "",                   # (unused)
+            "bridge_in_ev",       # dst_event_id
+        )
+
+        client = MockClickHouseClient(
+            events=[pre_swap, bridge_out, bridge_in, post_swap, late_event],
+            bridge_links=[bridge_link],
+        )
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_bridge_following(
+            entity_id="0xaaa",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=1),
+        )
+
+        event_ids = [e.event_id for e in result]
+        chains = [e.chain for e in result]
+        # Expected: pre_swap(base) → bridge_out(base) → bridge_in(ethereum) → post_swap(ethereum)
+        assert event_ids == ["pre_swap", "bridge_out_ev", "bridge_in_ev", "post_swap"]
+        assert chains == ["base", "base", "ethereum", "ethereum"]
+
+    def test_no_bridge_link_returns_source_only(self):
+        """When bridge hasn't been matched yet, return source-chain events."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        pre_swap = _make_event(
+            entity_id="0xaaa",
+            event_id="pre_swap",
+            event_type="swap",
+            timestamp=base_time - timedelta(hours=1),
+            chain="base",
+        )
+        bridge_out = _make_event(
+            entity_id="0xaaa",
+            event_id="bridge_out_ev",
+            event_type="bridge_out",
+            timestamp=base_time,
+            chain="base",
+            link_key="dep_999",  # No matching link
+            link_key_type="across_deposit_id",
+        )
+
+        client = MockClickHouseClient(
+            events=[pre_swap, bridge_out],
+            bridge_links=[],
+        )
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_bridge_following(
+            entity_id="0xaaa",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=1),
+        )
+
+        event_ids = [e.event_id for e in result]
+        assert event_ids == ["pre_swap", "bridge_out_ev"]
+
+    def test_no_bridge_out_returns_empty(self):
+        """Entity with no bridge_out events returns empty."""
+        swap = _make_event(
+            entity_id="0xaaa",
+            event_id="swap1",
+            event_type="swap",
+            timestamp=datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc),
+            chain="base",
+        )
+
+        client = MockClickHouseClient(events=[swap])
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_bridge_following(
+            entity_id="0xaaa",
+            window_before=timedelta(days=7),
+            window_after=timedelta(days=7),
+        )
+        assert result == []
+
+    def test_protocol_aware_bridge_anchor(self):
+        """Anchors on bridge_out of the specified protocol."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        # Across bridge_out (old)
+        across_old = _make_event(
+            entity_id="0xaaa",
+            event_id="across_old",
+            event_type="bridge_out",
+            protocol="across",
+            timestamp=base_time - timedelta(days=10),
+            chain="ethereum",
+            link_key="dep_1",
+            link_key_type="across_deposit_id",
+        )
+        # Stargate bridge_out (recent, the one we want)
+        stargate = _make_event(
+            entity_id="0xaaa",
+            event_id="stargate_out",
+            event_type="bridge_out",
+            protocol="stargate",
+            timestamp=base_time,
+            chain="ethereum",
+            link_key="sg_42",
+            link_key_type="stargate_dst_chain",
+        )
+        pre_swap = _make_event(
+            entity_id="0xaaa",
+            event_id="pre_swap",
+            event_type="swap",
+            timestamp=base_time - timedelta(hours=1),
+            chain="ethereum",
+        )
+
+        bridge_link = (
+            "sg_42", "base", "0xbbb",
+            base_time + timedelta(minutes=10),
+            "0xaaa", "", "", "bridge_in_ev",
+        )
+        bridge_in = _make_event(
+            entity_id="0xbbb",
+            event_id="bridge_in_ev",
+            event_type="bridge_in",
+            timestamp=base_time + timedelta(minutes=10),
+            chain="base",
+        )
+        post_swap = _make_event(
+            entity_id="0xbbb",
+            event_id="post_swap",
+            event_type="swap",
+            timestamp=base_time + timedelta(minutes=15),
+            chain="base",
+        )
+
+        client = MockClickHouseClient(
+            events=[across_old, stargate, pre_swap, bridge_in, post_swap],
+            bridge_links=[bridge_link],
+        )
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_bridge_following(
+            entity_id="0xaaa",
+            window_before=timedelta(days=2),
+            window_after=timedelta(days=1),
+            bridge_protocol="stargate",
+        )
+
+        event_ids = [e.event_id for e in result]
+        # Should anchor on stargate_out, not across_old
+        assert event_ids == ["pre_swap", "stargate_out", "bridge_in_ev", "post_swap"]
+
+    def test_destination_events_start_from_bridge_in(self):
+        """Dest chain events before bridge_in are NOT included."""
+        base_time = datetime(2024, 1, 15, 12, 0, 0, tzinfo=timezone.utc)
+        bridge_in_time = base_time + timedelta(minutes=30)
+
+        bridge_out = _make_event(
+            entity_id="0xaaa",
+            event_id="bridge_out_ev",
+            event_type="bridge_out",
+            timestamp=base_time,
+            chain="ethereum",
+            link_key="dep_50",
+            link_key_type="across_deposit_id",
+        )
+        # Destination event BEFORE bridge_in — should NOT appear
+        early_dest = _make_event(
+            entity_id="0xbbb",
+            event_id="early_dest",
+            event_type="swap",
+            timestamp=bridge_in_time - timedelta(minutes=5),
+            chain="base",
+        )
+        bridge_in = _make_event(
+            entity_id="0xbbb",
+            event_id="bridge_in_ev",
+            event_type="bridge_in",
+            timestamp=bridge_in_time,
+            chain="base",
+        )
+        post_swap = _make_event(
+            entity_id="0xbbb",
+            event_id="post_swap",
+            event_type="swap",
+            timestamp=bridge_in_time + timedelta(minutes=5),
+            chain="base",
+        )
+
+        bridge_link = (
+            "dep_50", "base", "0xbbb", bridge_in_time,
+            "0xaaa", "", "", "bridge_in_ev",
+        )
+
+        client = MockClickHouseClient(
+            events=[bridge_out, early_dest, bridge_in, post_swap],
+            bridge_links=[bridge_link],
+        )
+        engine = TrajectoryEngine(clickhouse_client=client)
+        result = engine.query_bridge_following(
+            entity_id="0xaaa",
+            window_before=timedelta(days=1),
+            window_after=timedelta(days=1),
+        )
+
+        event_ids = [e.event_id for e in result]
+        assert "early_dest" not in event_ids
+        assert event_ids == ["bridge_out_ev", "bridge_in_ev", "post_swap"]
 
 
 class TestTrajectoryEngineCrossChain:
