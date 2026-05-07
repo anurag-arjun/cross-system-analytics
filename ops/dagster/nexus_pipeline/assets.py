@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 
 from dagster import asset
 
 from core.adapters.evm.multi import ChainConfig
+from core.enrichment.prices import PriceFetcher
 from core.identity.bridge_links import BridgeLinkEngine
 
 from .resources import ClickHouseResource, EVMIngestionResource, PostgresResource
@@ -166,3 +168,50 @@ def bridge_links(
     stats = bridge_engine.stats()
     context.log.info(f"Matched {matched} bridge links, {stats['pending']} pending")
     return {"matched": matched, "pending": stats["pending"], "expired_deleted": deleted}
+
+
+@asset(
+    description="Hourly CoinGecko price refresh for all tracked tokens",
+)
+def token_prices(context, clickhouse: ClickHouseResource) -> dict:
+    """Fetch current USD prices for all tokens in token_metadata from CoinGecko.
+
+    Reads token_metadata to discover tracked tokens, groups them by chain,
+    fetches prices via CoinGecko (with DexScreener fallback), and stores
+    results in token_prices.
+    """
+    client = clickhouse.get_client()
+
+    # Discover all tracked tokens from metadata
+    result = client.query("""
+        SELECT lower(token_address) AS addr, chain
+        FROM token_metadata
+        ORDER BY chain, addr
+    """)
+
+    if not result.result_rows:
+        context.log.info("No tokens in token_metadata — skipping price refresh")
+        return {"prices_fetched": 0, "chains": []}
+
+    tokens_by_chain: dict[str, list[str]] = {}
+    for row in result.result_rows:
+        addr, chain = row
+        tokens_by_chain.setdefault(chain, []).append(addr)
+
+    context.log.info(
+        f"Refreshing prices for {sum(len(v) for v in tokens_by_chain.values())} "
+        f"tokens across {len(tokens_by_chain)} chains: "
+        f"{', '.join(f'{c}({len(v)})' for c, v in tokens_by_chain.items())}"
+    )
+
+    # Fetch and store prices (CoinGecko primary, DexScreener fallback)
+    fetcher = PriceFetcher(client=client)
+    total = 0
+    for chain, addresses in tokens_by_chain.items():
+        count = fetcher.update_prices(chain, addresses)
+        total += count
+        context.log.info(f"  {chain}: fetched {count}/{len(addresses)} prices")
+        if chain != list(tokens_by_chain.keys())[-1]:
+            time.sleep(1.0)  # Gentle rate-limit courtesy for free tier
+
+    return {"prices_fetched": total, "chains": list(tokens_by_chain.keys())}
