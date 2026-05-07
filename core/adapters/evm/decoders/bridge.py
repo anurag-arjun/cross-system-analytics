@@ -625,6 +625,183 @@ class OPWithdrawalProvenDecoder(LogDecoder):
         )
 
 
+class ArbitrumDepositInitiatedDecoder(LogDecoder):
+    """Arbitrum DepositInitiated — L1→L2 bridge_out on Ethereum.
+
+    Emitted by L1ERC20Gateway on Ethereum when a user initiates a deposit
+    from L1 to Arbitrum.  Contains sequenceNumber for bridge matching.
+
+    Per BRIDGE_RESEARCH.md: Spellbook uses gateway events, not Inbox/Outbox."""
+
+    @property
+    def topic0(self) -> str:
+        return "0x135826c80512d99f4b9b54847a22d329fe0303e24e975f7d328ccb9cd80e3154"
+
+    @property
+    def event_signature(self) -> str:
+        return "DepositInitiated(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 sequenceNumber, uint256 amount)"
+
+    @property
+    def protocol(self) -> str:
+        return "arbitrum_bridge"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        l1_token = self._topic_address(topics[1])
+        l2_token = self._topic_address(topics[2])
+        sender = self._topic_address(topics[3])
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["address", "uint256", "uint256"])
+        receiver = vals[0]
+        sequence_number = vals[1]
+        amount = Decimal(vals[2])
+
+        return DecodedEvent(
+            event_type="bridge_out",
+            entity_id=sender,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            token_in=l1_token,
+            token_out=l2_token,
+            amount_out=amount,
+            counterparty=receiver,
+            link_key=str(sequence_number),
+            link_key_type="arbitrum_sequence",
+            extra={
+                "l1_token": l1_token,
+                "l2_token": l2_token,
+                "from": sender,
+                "to": receiver,
+                "sequence_number": str(sequence_number),
+                "amount": str(amount),
+            },
+        )
+
+
+class ArbitrumWithdrawalFinalizedDecoder(LogDecoder):
+    """Arbitrum WithdrawalFinalized — L2→L1 bridge_in on Ethereum.
+
+    Emitted by L1ERC20Gateway on Ethereum when an Arbitrum→L1 withdrawal
+    is finalized.  Contains exitNum which matches the L2 withdrawal.
+
+    Per BRIDGE_RESEARCH.md: Spellbook uses gateway events for matching."""
+
+    @property
+    def topic0(self) -> str:
+        return "0x217d412c201ebee3ff118753c0fda21adba4ae0b3a022f116e9e2508022b384b"
+
+    @property
+    def event_signature(self) -> str:
+        return "WithdrawalFinalized(address indexed l1Token, address indexed l2Token, address indexed from, address to, uint256 exitNum, uint256 amount)"
+
+    @property
+    def protocol(self) -> str:
+        return "arbitrum_bridge"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        l1_token = self._topic_address(topics[1])
+        l2_token = self._topic_address(topics[2])
+        sender = self._topic_address(topics[3])
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["address", "uint256", "uint256"])
+        receiver = vals[0]
+        exit_num = vals[1]
+        amount = Decimal(vals[2])
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=receiver,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            token_in=l2_token,
+            token_out=l1_token,
+            amount_in=amount,
+            counterparty=sender,
+            link_key=str(exit_num),
+            link_key_type="arbitrum_exit_num",
+            extra={
+                "l1_token": l1_token,
+                "l2_token": l2_token,
+                "from": sender,
+                "to": receiver,
+                "exit_num": str(exit_num),
+                "amount": str(amount),
+            },
+        )
+
+
+class ArbitrumOutBoxTransactionExecutedDecoder(LogDecoder):
+    """Arbitrum OutBoxTransactionExecuted — L2→L1 execution confirmation.
+
+    Emitted by ArbOutbox on Ethereum when a L2→L1 transaction is executed
+    after the 7-day challenge period.  No token amounts (use
+    ArbitrumWithdrawalFinalizedDecoder for amounts).
+
+    Provides the L2 transaction index for precise matching."""
+
+    @property
+    def topic0(self) -> str:
+        return "0x20af7f3bbfe38132b8900ae295cd9c8d1914be7052d061a511f3f728dab18964"
+
+    @property
+    def event_signature(self) -> str:
+        return "OutBoxTransactionExecuted(address indexed to, address indexed l2Sender, uint256 indexed index, uint256 txNum)"
+
+    @property
+    def protocol(self) -> str:
+        return "arbitrum_bridge"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        topics = log.get("topics", [])
+        if len(topics) < 4:
+            return None
+        to_addr = self._topic_address(topics[1])
+        l2_sender = self._topic_address(topics[2])
+        index = int(topics[3], 16)
+        data = log.get("data", "0x")
+        tx_num = 0
+        if data != "0x":
+            vals = self._decode_abi(data, ["uint256"])
+            tx_num = vals[0]
+
+        return DecodedEvent(
+            event_type="bridge_in",
+            entity_id=to_addr,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            counterparty=l2_sender,
+            link_key=str(index),
+            link_key_type="arbitrum_outbox_index",
+            extra={
+                "to": to_addr,
+                "l2_sender": l2_sender,
+                "index": str(index),
+                "tx_num": str(tx_num),
+            },
+        )
+
+
 class OPWithdrawalFinalizedDecoder(LogDecoder):
     """OP Stack WithdrawalFinalized on L1 (bridge_in final confirmation).
 
