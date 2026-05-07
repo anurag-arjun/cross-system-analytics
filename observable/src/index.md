@@ -9,7 +9,9 @@ Cross-chain behavioral analytics for Web3 — 1.3M events, 54K wallets, real-tim
 
 <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
   <a href="/cross-chain" style="padding: 0.6rem 1.2rem; background: #6366f1; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Cross-Chain →</a>
+  <a href="/bridge-flow" style="padding: 0.6rem 1.2rem; background: #22c55e; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Bridge Flow →</a>
   <a href="/protocols" style="padding: 0.6rem 1.2rem; background: #f59e0b; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Protocol Analytics →</a>
+  <a href="/spikes" style="padding: 0.6rem 1.2rem; background: #ef4444; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Trending Contracts →</a>
 </div>
 
 ```js
