@@ -13,7 +13,7 @@ def main():
         port=8123,
         username="default",
         password="nexus",
-        database="default",
+        database="nexus",
     )
 
     result = client.query("""

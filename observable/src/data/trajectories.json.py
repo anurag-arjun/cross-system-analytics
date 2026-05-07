@@ -13,7 +13,7 @@ def main():
         port=8123,
         username="default",
         password="nexus",
-        database="default",
+        database="nexus",
     )
 
     # Find interesting wallets: those with swaps on multiple chains or multiple event types

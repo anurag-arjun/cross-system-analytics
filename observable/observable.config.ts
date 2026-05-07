@@ -5,8 +5,4 @@ export default {
   theme: "dark",
   head: `<link rel="icon" href="favicon.ico">`,
   footer: `Built with <a href="https://observablehq.com/framework/">Observable Framework</a>`,
-  
-  dynamicPaths: [
-    "/data/events.json"
-  ]
 };

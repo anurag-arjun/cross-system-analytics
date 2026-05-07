@@ -1,40 +1,38 @@
 ---
-title: Nexus Analytics Dashboard
+title: Nexus Analytics
 toc: false
 ---
 
 # Nexus Analytics
 
-Real-time cross-chain behavioral analytics for Web3.
+Cross-chain behavioral analytics for Web3 — 1.3M events, 54K wallets, real-time.
 
-<div style="margin-bottom: 1rem;">
-  <a href="./bridge-flow" style="padding: 0.5rem 1rem; background: #6366f1; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Bridge Flow Analytics →</a>
-  <a href="./trending" style="padding: 0.5rem 1rem; background: #f59e0b; color: white; border-radius: 6px; text-decoration: none; font-weight: 500; margin-left: 0.5rem;">Trending Contracts →</a>
+<div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+  <a href="/cross-chain" style="padding: 0.6rem 1.2rem; background: #6366f1; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Cross-Chain →</a>
+  <a href="/protocols" style="padding: 0.6rem 1.2rem; background: #f59e0b; color: white; border-radius: 6px; text-decoration: none; font-weight: 500;">Protocol Analytics →</a>
 </div>
 
 ```js
-const stats = FileAttachment("data/stats.json").json();
-const events = FileAttachment("data/events.json").json();
-const trajectories = FileAttachment("data/trajectories.json").json();
-const volume = FileAttachment("data/volume.json").json();
+const overview = FileAttachment("data/overview.json").json();
 ```
 
-<div class="grid grid-cols-4" style="grid-auto-rows: auto; gap: 1rem; margin-bottom: 2rem;">
+<div class="grid grid-cols-4" style="gap: 1rem; margin-bottom: 2rem;">
   <div class="card">
     <h2>Total Events</h2>
-    <span class="big">${stats.total_events.toLocaleString()}</span>
+    <span class="big">${overview.kpis.total_events.toLocaleString()}</span>
   </div>
   <div class="card">
     <h2>Unique Wallets</h2>
-    <span class="big">${stats.unique_wallets.toLocaleString()}</span>
+    <span class="big">${overview.kpis.unique_wallets.toLocaleString()}</span>
   </div>
   <div class="card">
-    <h2>DEX Volume (30m)</h2>
-    <span class="big">$${(volume.total_volume_usd / 1000000).toFixed(2)}M</span>
+    <h2>DEX Swaps</h2>
+    <span class="big">${overview.kpis.total_swaps.toLocaleString()}</span>
   </div>
-  <div class="card">
-    <h2>Cross-Chain Users</h2>
-    <span class="big">${stats.cross_chain_wallets.toLocaleString()}</span>
+  <div class="card" style="border-left: 4px solid #6366f1;">
+    <h2>Cross-Chain Wallets</h2>
+    <span class="big" style="color: #6366f1;">${overview.kpis.cross_chain_wallets.toLocaleString()}</span>
+    <span class="muted">${overview.kpis.cross_chain_pct}% of all wallets</span>
   </div>
 </div>
 
@@ -43,37 +41,41 @@ const volume = FileAttachment("data/volume.json").json();
 ```js
 Plot.plot({
   marks: [
-    Plot.barX(stats.by_chain, {
+    Plot.barX(overview.by_chain, {
       y: "chain",
-      x: "swaps",
+      x: "events",
       fill: "chain",
-      tip: true
+      tip: true,
+      sort: {y: "x", reverse: true}
     }),
     Plot.ruleX([0])
   ],
-  x: { label: "Swaps" },
+  x: { label: "Events", grid: true },
   y: { label: null },
   color: { legend: false },
   marginLeft: 80,
-  height: 150
+  height: 120
 })
 ```
 
-## Protocol Distribution
+<div class="grid grid-cols-2" style="gap: 1.5rem; margin: 2rem 0;">
+
+## Protocol Market Share
 
 ```js
 Plot.plot({
   marks: [
-    Plot.barY(stats.by_protocol, {
+    Plot.barY(overview.by_protocol, {
       x: "protocol",
       y: "swaps",
-      fill: "steelblue",
-      tip: true
+      fill: "#6366f1",
+      tip: true,
+      sort: {x: "y", reverse: true}
     }),
     Plot.ruleY([0])
   ],
-  x: { label: null, tickRotate: -45 },
-  y: { label: "Swaps" },
+  x: { label: null, tickRotate: -30 },
+  y: { label: "Swaps", grid: true },
   marginBottom: 80,
   height: 300
 })
@@ -84,90 +86,79 @@ Plot.plot({
 ```js
 Plot.plot({
   marks: [
-    Plot.barX(stats.by_event.slice(0, 6), {
+    Plot.barX(overview.by_event.slice(0, 8), {
       y: "event_type",
       x: "count",
-      fill: "#6366f1",
-      tip: true
+      fill: "#f59e0b",
+      tip: true,
+      sort: {y: "x", reverse: true}
     }),
     Plot.ruleX([0])
   ],
-  x: { label: "Count" },
+  x: { label: "Count", grid: true },
   y: { label: null },
-  marginLeft: 100,
-  height: 200
+  marginLeft: 120,
+  height: 300
 })
 ```
 
-## Sample User Trajectories
-
-Select a wallet to see their cross-chain journey:
-
-```js
-const walletSelect = view(Inputs.select(trajectories, {
-  format: t => `${t.wallet} (${t.event_count} events, ${t.chain_count} chains)`,
-  label: "Wallet"
-}));
-```
-
-```js
-const selectedTrajectory = walletSelect;
-```
-
-<div class="card" style="padding: 1rem;">
-<strong>Wallet:</strong> <code>${selectedTrajectory.wallet_full}</code><br/>
-<strong>Events:</strong> ${selectedTrajectory.event_count} | <strong>Chains:</strong> ${selectedTrajectory.chain_count}
 </div>
 
-```js
-Inputs.table(selectedTrajectory.events, {
-  columns: ["timestamp", "chain", "event_type", "protocol"],
-  header: {
-    timestamp: "Time",
-    chain: "Chain", 
-    event_type: "Event",
-    protocol: "Protocol"
-  }
-})
-```
-
-## Top Swaps by Volume
-
-```js
-Inputs.table(volume.large_swaps.slice(0, 15), {
-  columns: ["timestamp", "wallet", "protocol", "token0", "token1", "volume_usd"],
-  format: {
-    volume_usd: x => x ? `$${x.toLocaleString(undefined, {maximumFractionDigits: 0})}` : "-"
-  },
-  header: {
-    timestamp: "Time",
-    wallet: "Wallet",
-    protocol: "Protocol",
-    token0: "Token In",
-    token1: "Token Out",
-    volume_usd: "Volume (USD)"
-  }
-})
-```
-
-## Volume by Protocol
+## Hourly Activity (Last 48h)
 
 ```js
 Plot.plot({
   marks: [
-    Plot.barY(volume.by_protocol.filter(p => p.volume_usd > 0), {
-      x: "protocol",
-      y: "volume_usd",
-      fill: "#22c55e",
+    Plot.lineY(overview.hourly, {
+      x: "hour",
+      y: "events",
+      stroke: "#6366f1",
+      tip: true
+    }),
+    Plot.lineY(overview.hourly, {
+      x: "hour",
+      y: "swaps",
+      stroke: "#22c55e",
+      tip: true
+    })
+  ],
+  x: { label: null, tickRotate: -30 },
+  y: { label: "Count", grid: true },
+  color: { legend: true, domain: ["Events", "Swaps"] },
+  marginBottom: 60,
+  height: 250
+})
+```
+
+## Cross-Chain Distribution
+
+```js
+Plot.plot({
+  marks: [
+    Plot.barY(overview.cross_chain.distribution, {
+      x: d => `${d.chains} chain${d.chains > 1 ? 's' : ''}`,
+      y: "wallets",
+      fill: d => d.chains > 1 ? "#6366f1" : "#374151",
       tip: true
     }),
     Plot.ruleY([0])
   ],
   x: { label: null },
-  y: { label: "Volume (USD)", transform: d => d / 1000000, tickFormat: d => `$${d}M` },
-  height: 250
+  y: { label: "Wallets", grid: true },
+  height: 200
 })
 ```
+
+<div class="grid grid-cols-2" style="gap: 1rem; margin: 2rem 0;">
+  <div class="card">
+    <h2>Chains Active</h2>
+    <span class="big">${overview.kpis.chains_active}</span>
+  </div>
+  <div class="card">
+    <h2>Data Window</h2>
+    <span class="big" style="font-size: 1rem;">${overview.kpis.first_event.slice(0, 10)} → ${overview.kpis.last_event.slice(0, 10)}</span>
+  </div>
+</div>
 
 <style>
 .card {
@@ -176,13 +167,21 @@ Plot.plot({
   padding: 1.5rem;
 }
 .card h2 {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--theme-foreground-muted);
   margin: 0 0 0.5rem;
 }
 .big {
   font-size: 2rem;
-  font-weight: 600;
+  font-weight: 700;
+}
+.muted {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--theme-foreground-muted);
+  margin-top: 0.25rem;
 }
 </style>
