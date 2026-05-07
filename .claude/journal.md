@@ -1,5 +1,44 @@
 # Journal
 
+## 2026-05-06 — Pipeline stabilization, bridge infrastructure, USD pricing
+
+Worked on: Restarted Docker stack (old data intact), fixed HyperSync integration bugs,
+built complete bridge decoder + matching infrastructure across all 3 families (Intent,
+Message-Passing, Canonical), added aggregator decoders + dedup, stablecoin registry,
+USD-at-ingestion pricing.
+
+Decisions:
+  - **Across decoder topic0s were WRONG**: V3FundsDeposited/FilledV3Relay are LEGACY
+    ABI migration stubs. Active events are FundsDeposited/FilledRelay with bytes32
+    address types. Also SpokePool address was wrong (0x09aea4...bec64 not ...8B8EF6).
+  - **Stargate ReceiveFromChain deprecated**: 0 events on any chain. Real bridge_in
+    is LayerZero PacketDelivered. Added EID→chain normalization (chain_mapping.py).
+  - **Deferred dedup to flush**: 1000x faster ingestion (5,800 ev/s vs 60 ev/s).
+    Chunked queries at 1000 IDs to avoid ClickHouse HTTP field limit.
+  - **ClickHouse database**: changed from 'default' to 'nexus' across all configs
+    (SinkConfig, Dagster, enrichment, demo scripts).
+  - **CoinGecko primary, DexScreener fallback**: zero-auth price lookups for USD
+    at ingestion via PriceResolver. 29.5% coverage (up from 0%).
+  - **OP Stack precise matching (ADR-002)**: MessagePassed on L2 (bridge_out)
+    + WithdrawalProven/Finalized on L1 (bridge_in), matched on withdrawalHash.
+  - **Bridge research**: cloned Spellbook, cross-referenced all topic0s. Spellbook
+    uses per-chain Swap events + static labels, not cross-chain matching.
+
+Tickets closed (12):
+  na-5hcn (Postgres pending table), na-5p48 (bridge matching), na-ma17 (OP Stack
+  bridge_in decoders), na-snr2 (ingestion dedup), na-oktl/na-75dq/na-gk38 (aggregator
+  decoders), na-5dey (aggregator dedup), na-7qle (Stargate endpoint fix),
+  na-bugc (stablecoin override), na-dml4 (OP Stack precise matching),
+  na-sm8p (USD at ingestion)
+
+Commits: 13. Tests: 157 passing.
+
+Open threads:
+  - na-ffe3: Omnichain wallet timeline query (next priority)
+  - na-d5gu: Automate hourly CoinGecko price refresh
+  - na-xk8z: Arbitrum canonical bridge decoders
+  - Need to populate token_metadata for better USD coverage
+
 ## 2026-04-23 — Full project foundation: planning, monorepo, data architecture, tickets
 
 Worked on: Analyzed two legacy planning documents, reconciled them into unified product and engineering plans, scaffolded the full monorepo, researched data sources, and created the project tracking system.
