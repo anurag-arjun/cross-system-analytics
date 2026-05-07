@@ -476,17 +476,20 @@ class EVMAdapter(Adapter):
                     else:
                         block_ts_map[block_number] = self._block_time(block_number)
                 ts = block_ts_map[block_number]
-                decoded = decoder.decode(
-                    {
-                        "address": log.address,
-                        "topics": log.topics,
-                        "data": log.data,
-                        "blockNumber": hex(log.block_number),
-                        "transactionHash": log.transaction_hash,
-                        "logIndex": hex(log.log_index),
-                    },
-                    ts,
-                )
+                try:
+                    decoded = decoder.decode(
+                        {
+                            "address": log.address,
+                            "topics": log.topics,
+                            "data": log.data,
+                            "blockNumber": hex(log.block_number),
+                            "transactionHash": log.transaction_hash,
+                            "logIndex": hex(log.log_index),
+                        },
+                        ts,
+                    )
+                except Exception:
+                    continue
                 if decoded is None:
                     continue
                 results.append(self._to_canonical(decoded))

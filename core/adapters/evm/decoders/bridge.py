@@ -774,7 +774,14 @@ class ArbitrumOutBoxTransactionExecutedDecoder(LogDecoder):
             return None
         to_addr = self._topic_address(topics[1])
         l2_sender = self._topic_address(topics[2])
-        index = int(topics[3], 16)
+        # topics[3] may be int, bytes, or hex string depending on client
+        idx = topics[3]
+        if isinstance(idx, int):
+            index = idx
+        elif isinstance(idx, bytes):
+            index = int.from_bytes(idx, 'big')
+        else:
+            index = int(str(idx), 16)
         data = log.get("data", "0x")
         tx_num = 0
         if data != "0x":
