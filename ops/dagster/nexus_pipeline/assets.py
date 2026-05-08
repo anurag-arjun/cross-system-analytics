@@ -218,3 +218,71 @@ def token_prices(context, clickhouse: ClickHouseResource) -> dict:
             time.sleep(1.0)  # Gentle rate-limit courtesy for free tier
 
     return {"prices_fetched": total, "chains": list(tokens_by_chain.keys())}
+
+
+@asset(
+    description="Weekly parity check vs Dune dex.trades — surfaces decoder gaps and drift.",
+)
+def dune_parity(context, clickhouse: ClickHouseResource) -> dict:
+    """Run the Dune parity validator for the last 24h across in-scope chains.
+
+    Wraps `ops.validation.dune_parity.main()`. Output goes to
+    `ops/validation/runs/{YYYY-MM-DD}.json`. Logs the per-status summary
+    and counts of regression warnings.
+    """
+    from datetime import datetime, timedelta, timezone
+    from pathlib import Path
+
+    from ops.validation.dune_parity import (
+        DEFAULT_CHAINS,
+        annotate_with_baseline,
+        diff,
+        fetch_clickhouse_counts,
+        fetch_dune_counts,
+        load_baseline,
+        summarise,
+        warn_regressions,
+        write_run,
+    )
+
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=1)
+
+    our = fetch_clickhouse_counts(
+        host=clickhouse.host,
+        port=clickhouse.port,
+        username=clickhouse.username,
+        password=clickhouse.password,
+        database=clickhouse.database,
+        chains=DEFAULT_CHAINS,
+        start=start,
+        end=end,
+    )
+    dune, dune_bytes = fetch_dune_counts(chains=DEFAULT_CHAINS, start=start, end=end)
+
+    rows = diff(our, dune)
+    runs_dir = Path(__file__).resolve().parents[2] / "validation" / "runs"
+    baseline = load_baseline(runs_dir, before=end)
+    annotate_with_baseline(rows, baseline)
+
+    n_regress = warn_regressions(rows)
+    summary = summarise(rows)
+    path = write_run(
+        rows,
+        runs_dir=runs_dir,
+        window_start=start,
+        window_end=end,
+        chains=DEFAULT_CHAINS,
+        dune_bytes_scanned=dune_bytes,
+    )
+
+    context.log.info(
+        f"parity summary: {summary} | regressions={n_regress} | "
+        f"dune_bytes={dune_bytes:,} | wrote {path.name}"
+    )
+    return {
+        "summary": summary,
+        "regressions": n_regress,
+        "dune_bytes_scanned": dune_bytes,
+        "run_file": str(path),
+    }
