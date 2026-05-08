@@ -48,6 +48,7 @@ secrets/
 
 # Tickets
 .tickets/
+.tickets-archive-*/
 
 # Archive
 archive/
