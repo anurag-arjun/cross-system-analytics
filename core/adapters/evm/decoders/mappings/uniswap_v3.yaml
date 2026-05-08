@@ -1,0 +1,19 @@
+protocol: uniswap_v3
+chains: [ethereum, base, arbitrum, optimism, polygon]
+events:
+  - name: Swap
+    inputs:
+      - {name: sender,        type: address, indexed: true}
+      - {name: recipient,     type: address, indexed: true}
+      - {name: amount0,       type: int256}
+      - {name: amount1,       type: int256}
+      - {name: sqrtPriceX96,  type: uint160}
+      - {name: liquidity,     type: uint128}
+      - {name: tick,          type: int24}
+    canonical:
+      event_type: swap
+      entity_id: "{sender}"
+      venue: "{log.address}"
+      extra:
+        recipient: "{recipient}"
+    plugin: "core.adapters.evm.decoders.plugins:uniswap_v3_amounts"

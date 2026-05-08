@@ -314,7 +314,7 @@ class EVMAdapter(Adapter):
         """Decode a batch of raw logs using the current registry."""
         for row in raw_logs:
             topic0 = row.get("topic0")
-            decoder = self.registry.lookup(topic0, row.get("address"))
+            decoder = self.registry.lookup(topic0, row.get("address"), chain=self.chain)
             if decoder is None:
                 continue
             log = {
@@ -345,7 +345,7 @@ class EVMAdapter(Adapter):
         counts: dict[str, int] = {}
         for row in raw_logs:
             t0 = row.get("topic0")
-            if t0 and self.registry.lookup(t0, row.get("address")) is None:
+            if t0 and self.registry.lookup(t0, row.get("address"), chain=self.chain) is None:
                 counts[t0] = counts.get(t0, 0) + 1
         return counts
 
@@ -385,7 +385,7 @@ class EVMAdapter(Adapter):
             logs = rpc.get_logs(from_blk, to_blk, address=addresses, topics=topics)
             for log in logs:
                 topic0 = log.get("topics", [None])[0]
-                decoder = self.registry.lookup(topic0, log.get("address"))
+                decoder = self.registry.lookup(topic0, log.get("address"), chain=self.chain)
                 if decoder is None:
                     continue
                 block_number = int(log["blockNumber"], 16)
@@ -462,7 +462,7 @@ class EVMAdapter(Adapter):
             resp = await client.get(query)
             for log in resp.data.logs:
                 topic0 = log.topics[0] if log.topics else None
-                decoder = self.registry.lookup(topic0, log.address)
+                decoder = self.registry.lookup(topic0, log.address, chain=self.chain)
                 if decoder is None:
                     continue
                 block_number = log.block_number
@@ -544,7 +544,7 @@ class EVMAdapter(Adapter):
 
     def _decode_log(self, log: dict) -> CanonicalEvent:
         topic0 = log.get("topics", [None])[0]
-        decoder = self.registry.lookup(topic0, log.get("address"))
+        decoder = self.registry.lookup(topic0, log.get("address"), chain=self.chain)
         if decoder is None:
             raise ValueError(f"No decoder for topic0={topic0}")
         block_number = int(log["blockNumber"], 16)

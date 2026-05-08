@@ -1,5 +1,43 @@
 # Journal
 
+## 2026-05-08 — BD decoder foundation: framework + registry + Dune bootstrap + ABI fetcher
+
+Worked on: Re-scoped BD chains (Polygon in; HyperEVM/MegaETH/Monad out), audited my
+framing claims via real API calls, shipped 4 P1 foundation tickets for protocol-decoder
+coverage at scale.
+
+Decisions:
+  - **Generic ABI-driven decoders**: YAML mapping per protocol (~15 lines + optional
+    plugin) replaces hand-written `LogDecoder` classes. Bespoke kept only for
+    bridges/aggregators with stateful or multi-log logic.
+  - **Address-first registry lookup**: `registry.lookup(topic0, address, chain)` tries
+    chain+address → protocol → YAML mapping first; topic0 fallback for bespoke. Fixes
+    shared-topic0 disambiguation across DEX forks.
+  - **Dune is the address universe, not spellbook**: spellbook is dbt SQL on Dune's
+    already-decoded tables — NOT a decoder library. Real volume from Dune Query API:
+    27k contracts + 163k labels per 1-day pull, ~268 credits ≈ 9 bootstraps/month on
+    free tier. Spellbook seeds gave 91 rows total.
+  - **Audit before scoping**: real API probes caught my own spellbook 10k-rows estimate
+    before it caused real damage. New methodology: verify framing claims before sizing.
+  - **ABI cache dedup**: bytecode-hash + EIP-1967 proxy resolution = 2× dedup ratio in
+    real run; factory-deployed pools share one impl ABI.
+
+Tickets closed: na-8490 (framework), na-9tmq (registry+spellbook importer), na-7p8s
+(Dune bootstrap), na-iz3g (Etherscan ABI fetcher).
+Cleanup: archived 6 superseded planning docs + 4 stale dagster temp dirs; fresh-start
+refiled 26 BD-coverage tickets (85 archived).
+
+Files: core/registry/ (10 new modules), 4 new schemas (protocol_contracts,
+contract_labels, protocol_abis, contract_bytecodes), generic decoder + plugins.py +
+mappings/, ops/import_{spellbook,dune}_contracts.py + ops/fetch_abis.py, ~50 tests.
+
+Open threads:
+  - na-neal Polygon ingestion (30 min, ready)
+  - 14 protocol mapping tickets (Aave V3, Lido, Morpho, GMX V2, etc.) ready
+  - na-k7h7 new bridges (CCTP/Wormhole/Mayan/etc.) ready
+  - Persistent Postgres-backed registry run deferred (Postgres not running)
+  - /etc/hosts workaround applied for api.etherscan.io NXDOMAIN issue
+
 ## 2026-05-06 — Pipeline stabilization, bridge infrastructure, USD pricing
 
 Worked on: Restarted Docker stack (old data intact), fixed HyperSync integration bugs,

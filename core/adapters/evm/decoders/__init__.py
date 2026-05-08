@@ -21,8 +21,6 @@ from core.adapters.evm.decoders.bridge import (
     StargateReceiveFromChainDecoder,
     StargateSendToChainDecoder,
 )
-
-from core.adapters.evm.decoders.dex import UniswapV2SwapDecoder, UniswapV3SwapDecoder
 from core.adapters.evm.decoders.token import (
     ApprovalDecoder,
     TransferDecoder,
@@ -37,8 +35,6 @@ __all__ = [
     "ApprovalDecoder",
     "WETHDepositDecoder",
     "WETHWithdrawalDecoder",
-    "UniswapV2SwapDecoder",
-    "UniswapV3SwapDecoder",
     "StargateSendToChainDecoder",
     "StargateReceiveFromChainDecoder",
     "AcrossFundsDepositedDecoder",
@@ -60,13 +56,17 @@ __all__ = [
     "DEFAULT_DECODERS",
 ]
 
+# Bespoke decoders for events that need stateful or multi-log logic
+# (bridges with cross-chain matching, aggregators that emit a generic
+# `Filled` whose details are in calldata). YAML-driven decoders for the
+# straightforward one-log-to-one-canonical-event cases (DEX swaps, lending,
+# staking, etc.) are loaded from `core/adapters/evm/decoders/mappings/`
+# at registry-build time — see `core.adapters.evm.registry`.
 DEFAULT_DECODERS: list[LogDecoder] = [
     TransferDecoder(),
     ApprovalDecoder(),
     WETHDepositDecoder(),
     WETHWithdrawalDecoder(),
-    UniswapV2SwapDecoder(),
-    UniswapV3SwapDecoder(),
     StargateSendToChainDecoder(),
     StargateReceiveFromChainDecoder(),
     AcrossFundsDepositedDecoder(),
