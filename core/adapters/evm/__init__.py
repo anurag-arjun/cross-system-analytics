@@ -340,6 +340,7 @@ class EVMAdapter(Adapter):
                 "blockNumber": hex(row["block_number"]),
                 "transactionHash": row["tx_hash"],
                 "logIndex": hex(row["log_index"]),
+                "chain": self.chain,
             }
             ts = row.get("block_time") or self._block_time(row["block_number"])
             try:
@@ -495,6 +496,7 @@ class EVMAdapter(Adapter):
                             "blockNumber": hex(log.block_number),
                             "transactionHash": log.transaction_hash,
                             "logIndex": hex(log.log_index),
+                            "chain": self.chain,
                         },
                         ts,
                     )

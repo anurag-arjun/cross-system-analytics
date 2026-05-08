@@ -312,10 +312,11 @@ def test_template_cycle_raises(tmp_path):
         raise AssertionError("expected ValueError for template cycle")
 
 
-def test_uniswap_v4_swap_decoder():
-    """UniV4 Swap: int128 amounts (signed from user perspective), bytes32 PoolId."""
+def test_uniswap_v4_swap_decoder_with_pool_resolver():
+    """UniV4 Swap: int128 amounts + PoolId-resolved tokens via the pool registry."""
     from eth_abi import encode
     from core.adapters.evm.decoders.generic import load_mapping_dir
+    from core.adapters.evm.decoders import plugins as plugins_mod
 
     mappings = {m.protocol: m for m in load_mapping_dir(MAPPINGS_DIR)}
     assert "uniswap_v4" in mappings
@@ -329,40 +330,94 @@ def test_uniswap_v4_swap_decoder():
 
     pool_id = "0x" + "ab" * 32
     sender = "0x" + "cc" * 20
+    currency0 = "0x" + "11" * 20
+    currency1 = "0x" + "22" * 20
 
-    # int128 amounts: amount0 negative (user received token0), amount1 positive (user paid token1).
-    a0 = -(123 * 10**18)
-    a1 = 100 * 10**6
-    sqrt_price = 79228162514264337593543950336
-    liquidity = 1_000_000
-    tick = -200
-    fee = 3000
+    plugins_mod._reset_univ4_pool_resolver()
+    plugins_mod._UNIV4_POOL_RESOLVER = lambda chain, pid: (
+        (currency0, currency1) if pid == pool_id and chain == "ethereum" else None
+    )
+    plugins_mod._UNIV4_POOL_RESOLVER_LOADED = True
 
-    data = "0x" + encode(
-        ["int128", "int128", "uint160", "uint128", "int24", "uint24"],
-        [a0, a1, sqrt_price, liquidity, tick, fee],
-    ).hex()
-    log = {
-        "address": "0x000000000004444c5dc75cb358380d2e3de08a90",
-        "topics": [decoder.topic0, pool_id, _addr_topic(sender)],
-        "data": data,
-        "blockNumber": "0x1",
-        "transactionHash": TX,
-        "logIndex": "0x0",
-    }
-    decoded = decoder.decode(log, TS)
-    assert decoded is not None
-    assert decoded.protocol == "uniswap_v4"
-    assert decoded.event_type == "swap"
-    assert decoded.entity_id == sender
-    assert decoded.venue == "0x000000000004444c5dc75cb358380d2e3de08a90"
-    # User paid token1 (amount1 positive) -> amount_in = abs(a1).
-    # User received token0 (amount0 negative) -> amount_out = abs(a0).
-    assert decoded.amount_in == abs(a1)
-    assert decoded.amount_out == abs(a0)
-    assert decoded.extra["pool_id"] == pool_id
-    assert decoded.extra["amount0"] == str(a0)
-    assert decoded.extra["fee"] == str(fee)
+    try:
+        # amount0 negative (user received currency0), amount1 positive (user paid currency1)
+        a0 = -(123 * 10**18)
+        a1 = 100 * 10**6
+        sqrt_price = 79228162514264337593543950336
+        liquidity = 1_000_000
+        tick = -200
+        fee = 3000
+        data = "0x" + encode(
+            ["int128", "int128", "uint160", "uint128", "int24", "uint24"],
+            [a0, a1, sqrt_price, liquidity, tick, fee],
+        ).hex()
+        log = {
+            "address": "0x000000000004444c5dc75cb358380d2e3de08a90",
+            "topics": [decoder.topic0, pool_id, _addr_topic(sender)],
+            "data": data,
+            "blockNumber": "0x1",
+            "transactionHash": TX,
+            "logIndex": "0x0",
+            "chain": "ethereum",
+        }
+        decoded = decoder.decode(log, TS)
+        assert decoded is not None
+        assert decoded.protocol == "uniswap_v4"
+        assert decoded.event_type == "swap"
+        assert decoded.entity_id == sender
+        # User paid currency1, received currency0 (sign convention).
+        assert decoded.token_in == currency1
+        assert decoded.token_out == currency0
+        assert decoded.amount_in == abs(a1)
+        assert decoded.amount_out == abs(a0)
+        assert decoded.extra["pool_id"] == pool_id
+        assert decoded.extra["fee"] == str(fee)
+    finally:
+        plugins_mod._reset_univ4_pool_resolver()
+
+
+def test_uniswap_v4_swap_unresolved_pool_leaves_tokens_none():
+    """Swap on a pool not in the registry: amounts populated, tokens stay None."""
+    from eth_abi import encode
+    from core.adapters.evm.decoders.generic import load_mapping_dir
+    from core.adapters.evm.decoders import plugins as plugins_mod
+
+    mappings = {m.protocol: m for m in load_mapping_dir(MAPPINGS_DIR)}
+    swap_event = next(e for e in mappings["uniswap_v4"].events if e.name == "Swap")
+    decoder = GenericABIDecoder(mappings["uniswap_v4"], swap_event)
+
+    pool_id = "0x" + "ab" * 32
+    sender = "0x" + "cc" * 20
+
+    plugins_mod._reset_univ4_pool_resolver()
+    plugins_mod._UNIV4_POOL_RESOLVER = lambda chain, pid: None  # always-miss
+    plugins_mod._UNIV4_POOL_RESOLVER_LOADED = True
+
+    try:
+        a0 = -(50 * 10**18)
+        a1 = 25 * 10**6
+        data = "0x" + encode(
+            ["int128", "int128", "uint160", "uint128", "int24", "uint24"],
+            [a0, a1, 79228162514264337593543950336, 1, 0, 500],
+        ).hex()
+        log = {
+            "address": "0x000000000004444c5dc75cb358380d2e3de08a90",
+            "topics": [decoder.topic0, pool_id, _addr_topic(sender)],
+            "data": data,
+            "blockNumber": "0x1",
+            "transactionHash": TX,
+            "logIndex": "0x0",
+            "chain": "ethereum",
+        }
+        decoded = decoder.decode(log, TS)
+        assert decoded is not None
+        assert decoded.amount_in == abs(a1)
+        assert decoded.amount_out == abs(a0)
+        # Registry miss -> tokens unresolved
+        assert decoded.token_in is None
+        assert decoded.token_out is None
+    finally:
+        plugins_mod._reset_univ4_pool_resolver()
 
 
 def test_uniswap_v4_initialize_decoder():
