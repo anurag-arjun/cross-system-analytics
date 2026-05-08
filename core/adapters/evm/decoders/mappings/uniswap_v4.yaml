@@ -1,0 +1,34 @@
+protocol: uniswap_v4
+chains: [ethereum, base, arbitrum, optimism, polygon]
+events:
+  - name: Swap
+    inputs:
+      - {name: id,            type: bytes32, indexed: true}
+      - {name: sender,        type: address, indexed: true}
+      - {name: amount0,       type: int128}
+      - {name: amount1,       type: int128}
+      - {name: sqrtPriceX96,  type: uint160}
+      - {name: liquidity,     type: uint128}
+      - {name: tick,          type: int24}
+      - {name: fee,           type: uint24}
+    canonical:
+      event_type: swap
+      entity_id: "{sender}"
+      venue: "{log.address}"
+    plugin: "core.adapters.evm.decoders.plugins:uniswap_v4_swap_amounts"
+
+  - name: Initialize
+    inputs:
+      - {name: id,            type: bytes32, indexed: true}
+      - {name: currency0,     type: address, indexed: true}
+      - {name: currency1,     type: address, indexed: true}
+      - {name: fee,           type: uint24}
+      - {name: tickSpacing,   type: int24}
+      - {name: hooks,         type: address}
+      - {name: sqrtPriceX96,  type: uint160}
+      - {name: tick,          type: int24}
+    canonical:
+      event_type: pool_create
+      entity_id: "{log.address}"
+      venue: "{log.address}"
+    plugin: "core.adapters.evm.decoders.plugins:uniswap_v4_initialize"

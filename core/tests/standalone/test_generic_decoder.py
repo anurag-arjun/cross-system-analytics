@@ -310,3 +310,100 @@ def test_template_cycle_raises(tmp_path):
         assert "Cyclic" in str(e) or "cycle" in str(e).lower()
     else:
         raise AssertionError("expected ValueError for template cycle")
+
+
+def test_uniswap_v4_swap_decoder():
+    """UniV4 Swap: int128 amounts (signed from user perspective), bytes32 PoolId."""
+    from eth_abi import encode
+    from core.adapters.evm.decoders.generic import load_mapping_dir
+
+    mappings = {m.protocol: m for m in load_mapping_dir(MAPPINGS_DIR)}
+    assert "uniswap_v4" in mappings
+    swap_event = next(e for e in mappings["uniswap_v4"].events if e.name == "Swap")
+    decoder = GenericABIDecoder(mappings["uniswap_v4"], swap_event)
+    expected_topic0 = (
+        "0x"
+        + __import__("eth_utils").keccak(text="Swap(bytes32,address,int128,int128,uint160,uint128,int24,uint24)").hex()
+    )
+    assert decoder.topic0 == expected_topic0
+
+    pool_id = "0x" + "ab" * 32
+    sender = "0x" + "cc" * 20
+
+    # int128 amounts: amount0 negative (user received token0), amount1 positive (user paid token1).
+    a0 = -(123 * 10**18)
+    a1 = 100 * 10**6
+    sqrt_price = 79228162514264337593543950336
+    liquidity = 1_000_000
+    tick = -200
+    fee = 3000
+
+    data = "0x" + encode(
+        ["int128", "int128", "uint160", "uint128", "int24", "uint24"],
+        [a0, a1, sqrt_price, liquidity, tick, fee],
+    ).hex()
+    log = {
+        "address": "0x000000000004444c5dc75cb358380d2e3de08a90",
+        "topics": [decoder.topic0, pool_id, _addr_topic(sender)],
+        "data": data,
+        "blockNumber": "0x1",
+        "transactionHash": TX,
+        "logIndex": "0x0",
+    }
+    decoded = decoder.decode(log, TS)
+    assert decoded is not None
+    assert decoded.protocol == "uniswap_v4"
+    assert decoded.event_type == "swap"
+    assert decoded.entity_id == sender
+    assert decoded.venue == "0x000000000004444c5dc75cb358380d2e3de08a90"
+    # User paid token1 (amount1 positive) -> amount_in = abs(a1).
+    # User received token0 (amount0 negative) -> amount_out = abs(a0).
+    assert decoded.amount_in == abs(a1)
+    assert decoded.amount_out == abs(a0)
+    assert decoded.extra["pool_id"] == pool_id
+    assert decoded.extra["amount0"] == str(a0)
+    assert decoded.extra["fee"] == str(fee)
+
+
+def test_uniswap_v4_initialize_decoder():
+    """UniV4 Initialize: surfaces currency0 + currency1 as token_in/token_out
+    so the pool registry can be built from canonical_events."""
+    from eth_abi import encode
+    from core.adapters.evm.decoders.generic import load_mapping_dir
+
+    mappings = {m.protocol: m for m in load_mapping_dir(MAPPINGS_DIR)}
+    init_event = next(e for e in mappings["uniswap_v4"].events if e.name == "Initialize")
+    decoder = GenericABIDecoder(mappings["uniswap_v4"], init_event)
+    expected_topic0 = (
+        "0x"
+        + __import__("eth_utils").keccak(
+            text="Initialize(bytes32,address,address,uint24,int24,address,uint160,int24)"
+        ).hex()
+    )
+    assert decoder.topic0 == expected_topic0
+
+    pool_id = "0x" + "12" * 32
+    currency0 = "0x" + "11" * 20
+    currency1 = "0x" + "22" * 20
+    hooks = "0x" + "33" * 20
+
+    data = "0x" + encode(
+        ["uint24", "int24", "address", "uint160", "int24"],
+        [3000, 60, hooks, 79228162514264337593543950336, 0],
+    ).hex()
+    log = {
+        "address": "0x000000000004444c5dc75cb358380d2e3de08a90",
+        "topics": [decoder.topic0, pool_id, _addr_topic(currency0), _addr_topic(currency1)],
+        "data": data,
+        "blockNumber": "0x1",
+        "transactionHash": TX,
+        "logIndex": "0x0",
+    }
+    decoded = decoder.decode(log, TS)
+    assert decoded is not None
+    assert decoded.event_type == "pool_create"
+    assert decoded.token_in == currency0
+    assert decoded.token_out == currency1
+    assert decoded.extra["pool_id"] == pool_id
+    assert decoded.extra["fee"] == "3000"
+    assert decoded.extra["hooks"] == hooks

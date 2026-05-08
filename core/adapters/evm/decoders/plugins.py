@@ -59,3 +59,53 @@ def uniswap_v3_amounts(
     event.amount_out = abs(a0) if a0 < 0 else abs(a1)
     event.extra.update(amount0=str(a0), amount1=str(a1))
     return event
+
+
+def uniswap_v4_swap_amounts(
+    event: DecodedEvent, args: dict[str, Any], log: dict[str, Any]
+) -> DecodedEvent:
+    """UniV4 Swap emits int128 deltas signed from the user's perspective.
+
+    Negative means the user received that token; positive means the user
+    paid it. Token resolution against PoolId requires the pool registry
+    (built from Initialize events — see na-wmaz follow-up). For now we
+    emit amounts and stash PoolId + sender + sqrtPriceX96 + liquidity +
+    tick + fee in `extra` so a downstream enrichment step can join.
+    """
+    a0 = Decimal(args["amount0"])
+    a1 = Decimal(args["amount1"])
+    event.amount_in = abs(a0) if a0 > 0 else abs(a1)
+    event.amount_out = abs(a0) if a0 < 0 else abs(a1)
+    event.extra.update(
+        pool_id=args["id"],
+        amount0=str(a0),
+        amount1=str(a1),
+        sqrt_price_x96=str(args.get("sqrtPriceX96", "")),
+        liquidity=str(args.get("liquidity", "")),
+        tick=str(args.get("tick", "")),
+        fee=str(args.get("fee", "")),
+    )
+    return event
+
+
+def uniswap_v4_initialize(
+    event: DecodedEvent, args: dict[str, Any], log: dict[str, Any]
+) -> DecodedEvent:
+    """UniV4 Initialize event records pool creation.
+
+    Currencies are indexed args (token0, token1). We surface them as
+    token_in/token_out and stash hooks + fee + tickSpacing in extra; this
+    is the seed data for a pool-registry pipeline that lets the Swap
+    decoder resolve PoolId → tokens later. event_type is overridden to
+    'pool_create' so it doesn't get lumped with swaps.
+    """
+    event.event_type = "pool_create"
+    event.token_in = args.get("currency0")
+    event.token_out = args.get("currency1")
+    event.extra.update(
+        pool_id=args["id"],
+        fee=str(args.get("fee", "")),
+        tick_spacing=str(args.get("tickSpacing", "")),
+        hooks=args.get("hooks", ""),
+    )
+    return event
