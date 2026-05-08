@@ -266,16 +266,44 @@ def make_cached_resolver(
     into a dict at construction. This trades a one-shot ~50ms preload for
     O(1) memory lookups thereafter. Refresh by rebuilding the resolver — the
     underlying store is the source of truth.
+
+    When the same (chain, address) appears under multiple labels (Dune
+    publishes the same pool both as e.g. `aerodrome` in `dex.trades` and
+    as a `bitget_dex_aggregator` row in `dex_aggregator.trades`), the
+    resolver prefers the underlying-DEX label over the aggregator label.
+    Without this rule, aggregator-tagged pools would resolve to a slug
+    with no YAML mapping, mis-attributing the swap to the topic0
+    fallback decoder (typically uniswap_v2).
     """
     rows = list(store.all_rows())
+    # Compound priority (lower wins):
+    #   1. is_manual — operator override always wins.
+    #   2. contract_type — dex > protocol_contract > bridge > aggregator.
+    #      A pool labelled both "aerodrome" (dex) and "bitget_dex_aggregator"
+    #      (aggregator) resolves as aerodrome — the aggregator label has no
+    #      YAML decoder anyway, so without this rule the topic0 fallback
+    #      mis-attributed the swap to uniswap_v2.
+    #   3. source — manual > dune > spellbook.
+    src_priority = {"manual": 0, "dune": 1, "spellbook": 2}
+    type_priority = {
+        "dex": 0,
+        "protocol_contract": 1,
+        "bridge": 2,
+        "aggregator": 3,
+    }
+
+    def _key(r) -> tuple[int, int, int]:
+        is_manual = 0 if r.source == "manual" else 1
+        type_p = type_priority.get(r.contract_type, 1)  # NULL → middle
+        src_p = src_priority.get(r.source, 99)
+        return (is_manual, type_p, src_p)
+
+    rows.sort(key=_key)
     by_addr: dict[tuple[str, str], str] = {}
-    # Source priority: manual > dune > spellbook (matches Postgres lookup).
-    priority = {"manual": 0, "dune": 1, "spellbook": 2}
-    rows.sort(key=lambda r: priority.get(r.source, 99))
     for r in rows:
         key = (r.chain.lower(), r.address.lower())
         if key in by_addr:
-            continue  # higher-priority source already won
+            continue  # higher-priority candidate already won
         by_addr[key] = _slug(r.protocol, r.version) or r.protocol
 
     def _resolve(chain: str, address: str) -> str | None:

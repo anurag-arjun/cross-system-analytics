@@ -310,3 +310,56 @@ def test_make_cached_resolver_serves_from_memory():
     assert resolver("ethereum", addr2) == "curve"
     assert resolver("optimism", addr3) == "velodrome_v2"
     assert resolver("base", "0x" + "ff" * 20) is None
+
+
+def test_make_cached_resolver_prefers_dex_over_aggregator():
+    """Same (chain, address) labelled both 'dex' and 'aggregator' across
+    different sources: dex wins regardless of source.
+
+    Real case: Aerodrome v1 pool 0x89d0f320...a657 on Base appears as:
+      - protocol=aerodrome v1, source=spellbook, contract_type=protocol_contract
+      - protocol=bitget_dex_aggregator v2, source=dune, contract_type=aggregator
+    Source priority alone preferred dune (and the aggregator slug has no YAML
+    decoder), so aerodrome swaps got mis-attributed to uniswap_v2 via topic0
+    fallback. This test pins the contract-type-first rule.
+    """
+    from core.registry.protocol_contracts import make_cached_resolver
+
+    store = InMemoryProtocolContractStore()
+    addr = "0x" + "ab" * 20
+    store.upsert_many(
+        [
+            ProtocolContract(
+                chain="base", address=addr, protocol="aerodrome", version="1",
+                contract_type="protocol_contract", source="spellbook",
+            ),
+            ProtocolContract(
+                chain="base", address=addr, protocol="bitget_dex_aggregator", version="2",
+                contract_type="aggregator", source="dune",
+            ),
+        ]
+    )
+    resolver = make_cached_resolver(store)
+    assert resolver("base", addr) == "aerodrome_v1"
+
+
+def test_make_cached_resolver_manual_always_wins():
+    """Manual override beats any other source/type combination."""
+    from core.registry.protocol_contracts import make_cached_resolver
+
+    store = InMemoryProtocolContractStore()
+    addr = "0x" + "cd" * 20
+    store.upsert_many(
+        [
+            ProtocolContract(
+                chain="base", address=addr, protocol="manual_override", version=None,
+                contract_type=None, source="manual",
+            ),
+            ProtocolContract(
+                chain="base", address=addr, protocol="aerodrome", version="1",
+                contract_type="dex", source="dune",
+            ),
+        ]
+    )
+    resolver = make_cached_resolver(store)
+    assert resolver("base", addr) == "manual_override"

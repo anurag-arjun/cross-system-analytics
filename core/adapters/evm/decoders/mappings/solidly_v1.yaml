@@ -1,0 +1,18 @@
+protocol: solidly_v1
+chains: [ethereum, base, arbitrum, optimism, polygon]
+events:
+  - name: Swap
+    inputs:
+      - {name: sender,     type: address, indexed: true}
+      - {name: to,         type: address, indexed: true}
+      - {name: amount0In,  type: uint256}
+      - {name: amount1In,  type: uint256}
+      - {name: amount0Out, type: uint256}
+      - {name: amount1Out, type: uint256}
+    canonical:
+      event_type: swap
+      entity_id: "{sender}"
+      venue: "{log.address}"
+      extra:
+        to: "{to}"
+    plugin: "core.adapters.evm.decoders.plugins:uniswap_v2_amounts"

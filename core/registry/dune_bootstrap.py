@@ -159,7 +159,9 @@ def _labels_join_query(chains: tuple[str, ...], days: int) -> str:
 # ----------------------------------------------------------------------
 
 
-def _row_to_contract(row: dict[str, Any]) -> ProtocolContract | None:
+def _row_to_contract(
+    row: dict[str, Any], contract_type: str | None = None
+) -> ProtocolContract | None:
     chain = (row.get("blockchain") or "").strip().lower()
     address = (row.get("project_contract_address") or "").strip()
     protocol = (row.get("project") or "").strip()
@@ -170,7 +172,7 @@ def _row_to_contract(row: dict[str, Any]) -> ProtocolContract | None:
         address=address.lower(),
         protocol=protocol,
         version=(row.get("version") or "").strip() or None,
-        contract_type=None,
+        contract_type=contract_type,
         source="dune",
     )
 
@@ -232,8 +234,13 @@ def _run_contracts_phase(
     contract_store: ProtocolContractStore,
     stats: BootstrapStats,
     byte_cap: int,
+    contract_type: str | None = None,
 ) -> bool:
     """Runs pre-flight count, then full export, then upserts.
+
+    `contract_type` ("dex" / "aggregator" / "bridge") tags the source so
+    the decoder resolver can prefer real DEX pools over aggregators when
+    the same address appears under both labels.
 
     Returns False if budget cap aborted the phase (sets stats.aborted_at).
     """
@@ -250,7 +257,7 @@ def _run_contracts_phase(
 
     contracts = []
     for row in result.rows:
-        c = _row_to_contract(row)
+        c = _row_to_contract(row, contract_type=contract_type)
         if c is None:
             continue
         contracts.append(c)
@@ -311,23 +318,26 @@ def run_bootstrap(
     stats = BootstrapStats()
 
     phases = [
-        ("dex.trades", _dex_contracts_query(DEX_TRADES, chains, days)),
-        ("dex_aggregator.trades", _dex_contracts_query(DEX_AGG_TRADES, chains, days)),
+        ("dex.trades", _dex_contracts_query(DEX_TRADES, chains, days), "dex"),
+        ("dex_aggregator.trades", _dex_contracts_query(DEX_AGG_TRADES, chains, days), "aggregator"),
         (
             "bridges_evms.deposits",
             _bridges_contracts_query(BRIDGES_DEPOSITS, chains, days, "deposit_chain"),
+            "bridge",
         ),
         (
             "bridges_evms.withdrawals",
             _bridges_contracts_query(
                 BRIDGES_WITHDRAWALS, chains, days, "withdrawal_chain"
             ),
+            "bridge",
         ),
     ]
 
-    for label, sql in phases:
+    for label, sql, contract_type in phases:
         ok = _run_contracts_phase(
-            client, label, sql, sql, contract_store, stats, byte_cap
+            client, label, sql, sql, contract_store, stats, byte_cap,
+            contract_type=contract_type,
         )
         if not ok:
             return stats
