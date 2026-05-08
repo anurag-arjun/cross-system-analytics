@@ -25,6 +25,9 @@ CHAINS = [
     ChainConfig(
         "optimism", rpc_url="https://optimism-rpc.publicnode.com", page_size=200
     ),
+    ChainConfig(
+        "polygon", rpc_url="https://polygon-bor-rpc.publicnode.com", page_size=200
+    ),
 ]
 
 

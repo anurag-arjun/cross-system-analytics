@@ -27,6 +27,7 @@ _HYPER_URLS: dict[str, str] = {
     "base": "https://base.hypersync.xyz",
     "arbitrum": "https://arbitrum.hypersync.xyz",
     "optimism": "https://optimism.hypersync.xyz",
+    "polygon": "https://polygon.hypersync.xyz",
 }
 
 
@@ -146,6 +147,7 @@ class EVMAdapter(Adapter):
             "ethereum": "https://ethereum-rpc.publicnode.com",
             "arbitrum": "https://arbitrum-one-rpc.publicnode.com",
             "optimism": "https://optimism-rpc.publicnode.com",
+            "polygon": "https://polygon-bor-rpc.publicnode.com",
         }.get(chain, "https://base-rpc.publicnode.com")
 
     def _ensure_rpc(self) -> JsonRpcClient:
@@ -195,7 +197,7 @@ class EVMAdapter(Adapter):
     ) -> Iterator[dict[str, Any]]:
         rpc = self._ensure_rpc()
         head = rpc.get_block_number()
-        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism") else 12
+        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism", "polygon") else 12
         start_block = max(
             0, head - int((datetime.now(timezone.utc) - start).total_seconds() / secs_per_block)
         )
@@ -227,7 +229,7 @@ class EVMAdapter(Adapter):
         client = self._ensure_hyper()
         head = await client.get_height()
 
-        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism") else 12
+        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism", "polygon") else 12
         start_block = max(
             0, head - int((datetime.now(timezone.utc) - start).total_seconds() / secs_per_block)
         )
@@ -372,7 +374,7 @@ class EVMAdapter(Adapter):
     ) -> Iterator[CanonicalEvent]:
         rpc = self._ensure_rpc()
         head = rpc.get_block_number()
-        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism") else 12
+        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism", "polygon") else 12
         start_block = max(
             0, head - int((datetime.now(timezone.utc) - start).total_seconds() / secs_per_block)
         )
@@ -412,7 +414,7 @@ class EVMAdapter(Adapter):
         client = self._ensure_hyper()
         head = await client.get_height()
 
-        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism") else 12
+        secs_per_block = 2 if self.chain in ("base", "arbitrum", "optimism", "polygon") else 12
         start_block = max(
             0, head - int((datetime.now(timezone.utc) - start).total_seconds() / secs_per_block)
         )
