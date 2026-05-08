@@ -1,0 +1,3 @@
+protocol: baseswap_vbasex
+chains: [base]
+template: uniswap_v3

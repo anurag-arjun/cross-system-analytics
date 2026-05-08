@@ -1,0 +1,3 @@
+protocol: alienbase_v3
+chains: [base]
+template: uniswap_v3

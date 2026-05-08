@@ -140,12 +140,34 @@ def _entry_from_decoder(decoder: LogDecoder) -> ProtocolEntry:
 
 
 def _load_mapping_decoders() -> list[GenericABIDecoder]:
+    """Load YAML mappings with hand-curated parents registered first.
+
+    Many DEX-fork mappings share a topic0 (every UniV2 fork emits the same
+    `Swap` signature). Address-first lookup resolves the correct protocol
+    when the contract address is in `protocol_contracts`; for unknown
+    addresses the registry falls back to the first decoder registered for
+    that topic0. Parents (hand-curated, no `template:` field) should win
+    that fallback, so we register them ahead of template-aliased children.
+    """
     if not _MAPPINGS_DIR.exists():
         return []
-    decoders: list[GenericABIDecoder] = []
-    for mapping in load_mapping_dir(_MAPPINGS_DIR):
-        decoders.extend(build_decoders(mapping))
-    return decoders
+
+    import yaml as _yaml
+
+    mappings_by_protocol = {m.protocol: m for m in load_mapping_dir(_MAPPINGS_DIR)}
+
+    parents: list[GenericABIDecoder] = []
+    children: list[GenericABIDecoder] = []
+    for path in sorted(_MAPPINGS_DIR.glob("*.yaml")):
+        raw = _yaml.safe_load(path.read_text())
+        if not isinstance(raw, dict):
+            continue
+        mapping = mappings_by_protocol.get(raw.get("protocol"))
+        if mapping is None:
+            continue
+        bucket = children if "template" in raw else parents
+        bucket.extend(build_decoders(mapping))
+    return parents + children
 
 
 def build_default_registry(

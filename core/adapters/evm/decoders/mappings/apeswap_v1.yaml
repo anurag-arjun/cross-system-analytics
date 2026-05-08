@@ -1,0 +1,3 @@
+protocol: apeswap_v1
+chains: [ethereum, polygon]
+template: uniswap_v2

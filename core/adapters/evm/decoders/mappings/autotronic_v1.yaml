@@ -1,0 +1,3 @@
+protocol: autotronic_v1
+chains: [base]
+template: uniswap_v2

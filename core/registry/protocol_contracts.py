@@ -53,8 +53,25 @@ class ProtocolContractStore(ABC):
         """Return the protocol for (chain, address), or None."""
 
     @abstractmethod
+    def lookup_slug(self, chain: str, address: str) -> str | None:
+        """Return ``{protocol}_v{version}`` for (chain, address), or None.
+
+        This is the form decoder YAML mappings use: ``aerodrome_v1``,
+        ``uniswap_v2``, ``uniswap_v3``, etc. When ``version`` is empty/None
+        the slug is just the bare protocol name.
+        """
+
+    @abstractmethod
     def count(self) -> int:
         """Total rows in the store."""
+
+
+def _slug(protocol: str | None, version: str | None) -> str | None:
+    if not protocol:
+        return None
+    if not version:
+        return protocol
+    return f"{protocol}_v{version}"
 
 
 # ----------------------------------------------------------------------
@@ -76,10 +93,9 @@ class InMemoryProtocolContractStore(ProtocolContractStore):
             n += 1
         return n
 
-    def lookup(self, chain: str, address: str) -> str | None:
+    def _resolve(self, chain: str, address: str) -> ProtocolContract | None:
         chain = chain.lower()
         address = address.lower()
-        # Source-priority order: explicit -> dune -> spellbook -> other
         priority = ["manual", "dune", "spellbook"]
         candidates = [
             self._rows[k]
@@ -91,8 +107,16 @@ class InMemoryProtocolContractStore(ProtocolContractStore):
         for src in priority:
             for c in candidates:
                 if c.source == src:
-                    return c.protocol
-        return candidates[0].protocol
+                    return c
+        return candidates[0]
+
+    def lookup(self, chain: str, address: str) -> str | None:
+        c = self._resolve(chain, address)
+        return c.protocol if c else None
+
+    def lookup_slug(self, chain: str, address: str) -> str | None:
+        c = self._resolve(chain, address)
+        return _slug(c.protocol, c.version) if c else None
 
     def count(self) -> int:
         return len(self._rows)
@@ -149,8 +173,14 @@ class PostgresProtocolContractStore(ProtocolContractStore):
         return len(rows)
 
     def lookup(self, chain: str, address: str) -> str | None:
-        sql = """
-            SELECT protocol FROM protocol_contracts
+        return self._fetch_one(chain, address, columns="protocol", to_slug=False)
+
+    def lookup_slug(self, chain: str, address: str) -> str | None:
+        return self._fetch_one(chain, address, columns="protocol, version", to_slug=True)
+
+    def _fetch_one(self, chain: str, address: str, columns: str, to_slug: bool) -> str | None:
+        sql = f"""
+            SELECT {columns} FROM protocol_contracts
             WHERE chain = %s AND address = %s
             ORDER BY CASE source
                 WHEN 'manual'    THEN 1
@@ -164,7 +194,12 @@ class PostgresProtocolContractStore(ProtocolContractStore):
             with conn.cursor() as cur:
                 cur.execute(sql, (chain.lower(), address.lower()))
                 row = cur.fetchone()
-                return row[0] if row else None
+                if not row:
+                    return None
+                if to_slug:
+                    protocol, version = row[0], row[1]
+                    return _slug(protocol, version)
+                return row[0]
 
     def count(self) -> int:
         with self._conn() as conn:
@@ -180,6 +215,28 @@ class PostgresProtocolContractStore(ProtocolContractStore):
                 )
                 return cur.fetchone()[0]
 
+    def all_rows(self) -> list[ProtocolContract]:
+        """Bulk-fetch the entire registry. Used by `make_cached_resolver`."""
+        sql = """
+            SELECT chain, address, protocol, version, contract_type, source
+            FROM protocol_contracts
+        """
+        with self._conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                rows = cur.fetchall()
+        return [
+            ProtocolContract(
+                chain=r[0],
+                address=r[1],
+                protocol=r[2],
+                version=r[3],
+                contract_type=r[4],
+                source=r[5],
+            )
+            for r in rows
+        ]
+
 
 # ----------------------------------------------------------------------
 # Resolver factory
@@ -187,6 +244,41 @@ class PostgresProtocolContractStore(ProtocolContractStore):
 
 
 def make_resolver(store: ProtocolContractStore) -> Callable[[str, str], str | None]:
-    """Adapt a store to the (chain, address) -> protocol callable expected by
-    `core.adapters.evm.registry.DecoderRegistry.protocol_resolver`."""
-    return store.lookup
+    """Adapt a store to the (chain, address) -> slug callable expected by
+    `core.adapters.evm.registry.DecoderRegistry.protocol_resolver`.
+
+    The slug form ``{protocol}_v{version}`` matches the YAML mapping
+    namespace, so e.g. an Aerodrome v1 pool resolves to ``aerodrome_v1``
+    and the registry finds the corresponding decoder. For legacy callers
+    that need the bare protocol, use ``store.lookup`` directly.
+    """
+    return store.lookup_slug
+
+
+def make_cached_resolver(
+    store: ProtocolContractStore,
+) -> Callable[[str, str], str | None]:
+    """Preload the entire registry into memory and return a slug resolver.
+
+    Decoder lookups happen once per ingested log (millions per Dagster run),
+    so a per-call Postgres roundtrip is fatal. The full ``protocol_contracts``
+    table is small (~30k rows after a 1-day Dune bootstrap), so we load it
+    into a dict at construction. This trades a one-shot ~50ms preload for
+    O(1) memory lookups thereafter. Refresh by rebuilding the resolver — the
+    underlying store is the source of truth.
+    """
+    rows = list(store.all_rows())
+    by_addr: dict[tuple[str, str], str] = {}
+    # Source priority: manual > dune > spellbook (matches Postgres lookup).
+    priority = {"manual": 0, "dune": 1, "spellbook": 2}
+    rows.sort(key=lambda r: priority.get(r.source, 99))
+    for r in rows:
+        key = (r.chain.lower(), r.address.lower())
+        if key in by_addr:
+            continue  # higher-priority source already won
+        by_addr[key] = _slug(r.protocol, r.version) or r.protocol
+
+    def _resolve(chain: str, address: str) -> str | None:
+        return by_addr.get((chain.lower(), address.lower()))
+
+    return _resolve

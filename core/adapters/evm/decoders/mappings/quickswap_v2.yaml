@@ -1,0 +1,3 @@
+protocol: quickswap_v2
+chains: [polygon]
+template: uniswap_v2

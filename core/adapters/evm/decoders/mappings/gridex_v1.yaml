@@ -1,0 +1,3 @@
+protocol: gridex_v1
+chains: [arbitrum, base, optimism, polygon]
+template: uniswap_v3

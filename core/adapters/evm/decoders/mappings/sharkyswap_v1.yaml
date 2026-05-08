@@ -1,0 +1,3 @@
+protocol: sharkyswap_v1
+chains: [arbitrum]
+template: uniswap_v2

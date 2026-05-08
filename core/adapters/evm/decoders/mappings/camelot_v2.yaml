@@ -1,0 +1,3 @@
+protocol: camelot_v2
+chains: [arbitrum]
+template: uniswap_v2

@@ -1,0 +1,3 @@
+protocol: honeyswap_v2
+chains: [polygon]
+template: uniswap_v2

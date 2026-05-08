@@ -1,0 +1,3 @@
+protocol: aerodrome_vslipstream
+chains: [base]
+template: uniswap_v3

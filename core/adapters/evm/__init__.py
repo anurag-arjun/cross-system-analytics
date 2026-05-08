@@ -313,7 +313,12 @@ class EVMAdapter(Adapter):
     # ------------------------------------------------------------------
 
     def decode_logs(self, raw_logs: list[dict[str, Any]]) -> Iterator[CanonicalEvent]:
-        """Decode a batch of raw logs using the current registry."""
+        """Decode a batch of raw logs using the current registry.
+
+        Per-log decode failures are swallowed (with a single counter advance)
+        so a malformed event from one protocol never poisons the whole batch.
+        Mirrors the resilience already in the streaming HyperSync path.
+        """
         for row in raw_logs:
             topic0 = row.get("topic0")
             decoder = self.registry.lookup(topic0, row.get("address"), chain=self.chain)
@@ -337,7 +342,10 @@ class EVMAdapter(Adapter):
                 "logIndex": hex(row["log_index"]),
             }
             ts = row.get("block_time") or self._block_time(row["block_number"])
-            decoded = decoder.decode(log, ts)
+            try:
+                decoded = decoder.decode(log, ts)
+            except Exception:
+                continue
             if decoded is None:
                 continue
             yield self._to_canonical(decoded)

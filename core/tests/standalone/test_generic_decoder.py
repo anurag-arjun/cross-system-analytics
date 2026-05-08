@@ -243,3 +243,70 @@ def test_address_first_resolution_picks_correct_protocol():
     assert sushi_match is sushi_decoder
     # Unknown address falls back to topic0 lookup; first registered wins.
     assert unknown_match is pancake_decoder
+
+
+def test_template_inherits_events(tmp_path):
+    """A YAML with `template: <protocol>` reuses the parent's events."""
+    from core.adapters.evm.decoders.generic import load_mapping_dir
+
+    (tmp_path / "uniswap_v2.yaml").write_text(
+        "protocol: uniswap_v2\n"
+        "chains: [ethereum]\n"
+        "events:\n"
+        "  - name: Swap\n"
+        "    inputs:\n"
+        "      - {name: sender, type: address, indexed: true}\n"
+        "      - {name: amount0In, type: uint256}\n"
+        "      - {name: amount1In, type: uint256}\n"
+        "      - {name: amount0Out, type: uint256}\n"
+        "      - {name: amount1Out, type: uint256}\n"
+        "      - {name: to, type: address, indexed: true}\n"
+        "    canonical:\n"
+        "      event_type: swap\n"
+        "      entity_id: \"{sender}\"\n"
+        "      venue: \"{log.address}\"\n"
+    )
+    (tmp_path / "aerodrome.yaml").write_text(
+        "protocol: aerodrome\n"
+        "chains: [base]\n"
+        "template: uniswap_v2\n"
+    )
+
+    mappings = {m.protocol: m for m in load_mapping_dir(tmp_path)}
+    assert "aerodrome" in mappings
+    assert "uniswap_v2" in mappings
+
+    parent = mappings["uniswap_v2"]
+    child = mappings["aerodrome"]
+    assert child.events == parent.events
+    assert child.protocol == "aerodrome"
+    assert child.chains == ("base",)
+
+
+def test_template_unknown_parent_raises(tmp_path):
+    from core.adapters.evm.decoders.generic import load_mapping_dir
+
+    (tmp_path / "child.yaml").write_text(
+        "protocol: child\n"
+        "chains: [ethereum]\n"
+        "template: nonexistent\n"
+    )
+    try:
+        load_mapping_dir(tmp_path)
+    except ValueError as e:
+        assert "nonexistent" in str(e)
+    else:
+        raise AssertionError("expected ValueError for unknown template")
+
+
+def test_template_cycle_raises(tmp_path):
+    from core.adapters.evm.decoders.generic import load_mapping_dir
+
+    (tmp_path / "a.yaml").write_text("protocol: a\nchains: [ethereum]\ntemplate: b\n")
+    (tmp_path / "b.yaml").write_text("protocol: b\nchains: [ethereum]\ntemplate: a\n")
+    try:
+        load_mapping_dir(tmp_path)
+    except ValueError as e:
+        assert "Cyclic" in str(e) or "cycle" in str(e).lower()
+    else:
+        raise AssertionError("expected ValueError for template cycle")

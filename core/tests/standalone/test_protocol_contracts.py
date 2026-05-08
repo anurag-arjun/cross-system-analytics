@@ -253,3 +253,60 @@ def test_real_spellbook_extracts_some_known_protocols():
     protocols = {r.protocol for r in store.all_rows()}
     assert "uniswap" in protocols  # the most ubiquitous
     assert len(stats.chains & IN_SCOPE_CHAINS) >= 3
+
+
+def test_lookup_slug_combines_protocol_and_version():
+    """`lookup_slug` returns the YAML-mapping form `{protocol}_v{version}`."""
+    store = InMemoryProtocolContractStore()
+    addr1 = "0x" + "aa" * 20
+    addr2 = "0x" + "bb" * 20
+    addr3 = "0x" + "cc" * 20
+    store.upsert_many(
+        [
+            ProtocolContract(chain="base", address=addr1, protocol="uniswap", version="3", source="dune"),
+            ProtocolContract(chain="base", address=addr2, protocol="aerodrome", version="slipstream", source="dune"),
+            ProtocolContract(chain="base", address=addr3, protocol="curve", source="manual"),
+        ]
+    )
+    assert store.lookup_slug("base", addr1) == "uniswap_v3"
+    assert store.lookup_slug("base", addr2) == "aerodrome_vslipstream"
+    # No version -> bare protocol name
+    assert store.lookup_slug("base", addr3) == "curve"
+    # Missing address -> None
+    assert store.lookup_slug("base", "0x" + "ff" * 20) is None
+
+
+def test_make_resolver_returns_slug_form():
+    """The decoder resolver must return the slug, not the bare protocol."""
+    store = InMemoryProtocolContractStore()
+    addr = "0x" + "11" * 20
+    store.upsert_many(
+        [ProtocolContract(chain="base", address=addr, protocol="uniswap", version="2", source="dune")]
+    )
+    resolver = make_resolver(store)
+    assert resolver("base", addr) == "uniswap_v2"
+
+
+def test_make_cached_resolver_serves_from_memory():
+    """Cached resolver preloads all rows; subsequent lookups are O(1)
+    and respect source priority."""
+    from core.registry.protocol_contracts import make_cached_resolver
+
+    store = InMemoryProtocolContractStore()
+    addr1 = "0x" + "11" * 20
+    addr2 = "0x" + "22" * 20
+    addr3 = "0x" + "33" * 20
+    store.upsert_many(
+        [
+            ProtocolContract(chain="base", address=addr1, protocol="aerodrome", version="1", source="dune"),
+            ProtocolContract(chain="ethereum", address=addr2, protocol="curve", source="manual"),
+            # Same (chain, address) with conflicting source — manual wins
+            ProtocolContract(chain="optimism", address=addr3, protocol="velodrome", version="2", source="spellbook"),
+            ProtocolContract(chain="optimism", address=addr3, protocol="velodrome", version="2", source="manual"),
+        ]
+    )
+    resolver = make_cached_resolver(store)
+    assert resolver("base", addr1) == "aerodrome_v1"
+    assert resolver("ethereum", addr2) == "curve"
+    assert resolver("optimism", addr3) == "velodrome_v2"
+    assert resolver("base", "0x" + "ff" * 20) is None

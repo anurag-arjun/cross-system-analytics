@@ -16,6 +16,10 @@ from core.identity.pending_bridge import (
     PostgresPendingBridgeStore,
     PendingBridgeStore,
 )
+from core.registry.protocol_contracts import (
+    PostgresProtocolContractStore,
+    make_cached_resolver,
+)
 from core.sink import BridgeLinkSink, ClickHouseSink, RawLogSink, SinkConfig
 
 
@@ -105,11 +109,31 @@ class PostgresResource(ConfigurableResource):
 class EVMIngestionResource(ConfigurableResource):
     lookback_minutes: int = 30
     hyper_token: str | None = None
+    # Postgres DSN for the protocol_contracts registry. When set, the
+    # decoder registry uses an address-first resolver so DEX-fork swaps are
+    # attributed to the correct protocol slug (aerodrome_v1, sushiswap_v2,
+    # etc.). Defaults to the same Postgres ops DB used elsewhere.
+    protocol_contracts_dsn: str | None = None
 
     def get_adapter(self, chains: list[ChainConfig]) -> MultiChainAdapter:
+        resolver = None
+        dsn = self.protocol_contracts_dsn or os.getenv(
+            "PROTOCOL_CONTRACTS_DSN",
+            "postgresql://nexus:nexus@localhost:5434/nexus_ops",
+        )
+        if dsn:
+            try:
+                store = PostgresProtocolContractStore(dsn)
+                if store.count() > 0:
+                    # Preload the entire registry into a dict — per-log
+                    # Postgres roundtrips would hang ingestion.
+                    resolver = make_cached_resolver(store)
+            except Exception:  # noqa: BLE001 — registry is optional
+                resolver = None
         return MultiChainAdapter(
             chains=chains,
             hyper_token=self.hyper_token or os.getenv("HYPERSYNC_TOKEN"),
+            protocol_resolver=resolver,
         )
 
     def get_bridge_engine(self, store: PendingBridgeStore | None = None) -> BridgeLinkEngine:

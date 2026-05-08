@@ -1,0 +1,3 @@
+protocol: pancakeswap_v2
+chains: [arbitrum, base, ethereum]
+template: uniswap_v2

@@ -1,0 +1,3 @@
+protocol: jetswap_v1
+chains: [polygon]
+template: uniswap_v2

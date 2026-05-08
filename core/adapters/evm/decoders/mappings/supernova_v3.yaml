@@ -1,0 +1,3 @@
+protocol: supernova_v3
+chains: [ethereum]
+template: uniswap_v3

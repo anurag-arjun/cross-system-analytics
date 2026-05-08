@@ -1,0 +1,3 @@
+protocol: fraxswap_v1
+chains: [arbitrum, ethereum, optimism, polygon]
+template: uniswap_v2

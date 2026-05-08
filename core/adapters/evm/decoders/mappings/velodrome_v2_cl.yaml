@@ -1,0 +1,3 @@
+protocol: velodrome_v2_cl
+chains: [optimism]
+template: uniswap_v3

@@ -1,0 +1,3 @@
+protocol: elk_finance_v1
+chains: [base, optimism]
+template: uniswap_v2

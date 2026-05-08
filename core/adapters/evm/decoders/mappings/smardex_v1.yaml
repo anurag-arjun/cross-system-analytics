@@ -1,0 +1,3 @@
+protocol: smardex_v1
+chains: [arbitrum, base, polygon]
+template: uniswap_v3

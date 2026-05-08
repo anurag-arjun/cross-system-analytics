@@ -1,0 +1,3 @@
+protocol: integral_vsize
+chains: [arbitrum, ethereum]
+template: uniswap_v2

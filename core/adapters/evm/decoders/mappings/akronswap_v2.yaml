@@ -1,0 +1,3 @@
+protocol: akronswap_v2
+chains: [arbitrum, base]
+template: uniswap_v2

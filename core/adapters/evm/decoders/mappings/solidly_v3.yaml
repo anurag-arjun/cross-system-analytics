@@ -1,0 +1,3 @@
+protocol: solidly_v3
+chains: [arbitrum, base, ethereum, optimism]
+template: uniswap_v3

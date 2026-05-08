@@ -1,0 +1,3 @@
+protocol: dackieswap_v2
+chains: [arbitrum, optimism]
+template: uniswap_v2

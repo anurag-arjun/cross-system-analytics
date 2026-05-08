@@ -1,0 +1,295 @@
+[
+  {
+    "project": "airswap",
+    "version": "",
+    "family": "airswap_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "ethereum",
+      "polygon"
+    ]
+  },
+  {
+    "project": "balancer",
+    "version": "1",
+    "family": "balancer_compatible_v1_trades",
+    "chains": [
+      "ethereum"
+    ]
+  },
+  {
+    "project": "balancer",
+    "version": "2",
+    "family": "balancer_compatible_v2_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum",
+      "optimism",
+      "polygon"
+    ]
+  },
+  {
+    "project": "balancer",
+    "version": "3",
+    "family": "balancer_compatible_v3_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "carbon_defi",
+    "version": "",
+    "family": "carbon_defi_compatible_trades",
+    "chains": [
+      "base",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "clipper",
+    "version": "",
+    "family": "clipper_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum",
+      "optimism",
+      "polygon"
+    ]
+  },
+  {
+    "project": "dodo",
+    "version": "",
+    "family": "dodo_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum",
+      "optimism"
+    ]
+  },
+  {
+    "project": "dodoex",
+    "version": "",
+    "family": "dodo_compatible_trades",
+    "chains": [
+      "polygon"
+    ]
+  },
+  {
+    "project": "eulerswap",
+    "version": "1",
+    "family": "eulerswap_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "gmx",
+    "version": "1",
+    "family": "generic_spot_compatible_trades",
+    "chains": [
+      "arbitrum"
+    ]
+  },
+  {
+    "project": "kyberswap",
+    "version": "",
+    "family": "kyberswap_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum",
+      "optimism",
+      "polygon"
+    ]
+  },
+  {
+    "project": "maverick",
+    "version": "1",
+    "family": "maverick_compatible_trades",
+    "chains": [
+      "base",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "maverick",
+    "version": "2",
+    "family": "maverick_compatible_v2_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "mummy_finance",
+    "version": "1",
+    "family": "generic_spot_compatible_trades",
+    "chains": [
+      "optimism"
+    ]
+  },
+  {
+    "project": "native",
+    "version": "",
+    "family": "native_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "openocean",
+    "version": "2",
+    "family": "openocean_compatible_v2_trades",
+    "chains": [
+      "base"
+    ]
+  },
+  {
+    "project": "opx_finance",
+    "version": "1",
+    "family": "generic_spot_compatible_trades",
+    "chains": [
+      "optimism"
+    ]
+  },
+  {
+    "project": "pancakeswap",
+    "version": "infinity_cl",
+    "family": "pancakeswap_compatible_infinity_cl_trades",
+    "chains": [
+      "base"
+    ]
+  },
+  {
+    "project": "pancakeswap",
+    "version": "infinity_lb",
+    "family": "pancakeswap_compatible_infinity_lb_trades",
+    "chains": [
+      "base"
+    ]
+  },
+  {
+    "project": "sushiswap",
+    "version": "trident-cpp",
+    "family": "generic_spot_compatible_trades",
+    "chains": [
+      "optimism"
+    ]
+  },
+  {
+    "project": "sushiswap",
+    "version": "trident-sp",
+    "family": "generic_spot_compatible_trades",
+    "chains": [
+      "optimism"
+    ]
+  },
+  {
+    "project": "swaap",
+    "version": "2",
+    "family": "swaap_v2_compatible_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum",
+      "optimism",
+      "polygon"
+    ]
+  },
+  {
+    "project": "tapio",
+    "version": "1",
+    "family": "tapio_compatible_trades",
+    "chains": [
+      "base"
+    ]
+  },
+  {
+    "project": "tessera_v",
+    "version": "",
+    "family": "tessera_v_compatible_trades",
+    "chains": [
+      "base"
+    ]
+  },
+  {
+    "project": "trader_joe",
+    "version": "2",
+    "family": "trader_joe_compatible_v2_trades",
+    "chains": [
+      "arbitrum"
+    ]
+  },
+  {
+    "project": "trader_joe",
+    "version": "2.1",
+    "family": "trader_joe_compatible_v2_1_trades",
+    "chains": [
+      "arbitrum"
+    ]
+  },
+  {
+    "project": "trader_joe",
+    "version": "2.2",
+    "family": "trader_joe_compatible_v2_1_trades",
+    "chains": [
+      "arbitrum"
+    ]
+  },
+  {
+    "project": "uniswap",
+    "version": "4",
+    "family": "uniswap_compatible_v4_trades",
+    "chains": [
+      "arbitrum",
+      "base",
+      "ethereum",
+      "optimism",
+      "polygon"
+    ]
+  },
+  {
+    "project": "valantis",
+    "version": "hot",
+    "family": "valantis_compatible_hot_trades",
+    "chains": [
+      "arbitrum",
+      "ethereum"
+    ]
+  },
+  {
+    "project": "wombat_exchange",
+    "version": "",
+    "family": "generic_spot_v2_compatible_trades",
+    "chains": [
+      "base",
+      "optimism"
+    ]
+  },
+  {
+    "project": "wombatexchange",
+    "version": "",
+    "family": "generic_spot_v2_compatible_trades",
+    "chains": [
+      "arbitrum"
+    ]
+  },
+  {
+    "project": "woofi",
+    "version": "",
+    "family": "generic_spot_v2_compatible_trades",
+    "chains": [
+      "base",
+      "optimism"
+    ]
+  }
+]

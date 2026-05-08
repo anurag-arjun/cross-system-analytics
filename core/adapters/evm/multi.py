@@ -5,10 +5,13 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, AsyncIterator, Iterator
+from typing import Any, AsyncIterator, Callable, Iterator
 
 from core.adapters.base import CanonicalEvent
 from core.adapters.evm import EVMAdapter
+from core.adapters.evm.registry import build_default_registry
+
+ProtocolResolver = Callable[[str, str], "str | None"]
 
 
 @dataclass
@@ -37,7 +40,10 @@ class MultiChainAdapter:
         chains: list[ChainConfig],
         hyper_token: str | None = None,
         shared_registry: Any | None = None,
+        protocol_resolver: ProtocolResolver | None = None,
     ) -> None:
+        if shared_registry is None and protocol_resolver is not None:
+            shared_registry = build_default_registry(protocol_resolver=protocol_resolver)
         self.adapters: dict[str, EVMAdapter] = {}
         for cfg in chains:
             self.adapters[cfg.chain] = EVMAdapter(

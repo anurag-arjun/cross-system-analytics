@@ -256,7 +256,50 @@ def load_mapping_file(path: Path) -> ProtocolMapping:
 
 
 def load_mapping_dir(path: Path) -> list[ProtocolMapping]:
-    return [load_mapping_file(p) for p in sorted(path.glob("*.yaml"))]
+    """Load every YAML in `path`. Resolves `template: <protocol>` inheritance.
+
+    A mapping that declares `template: uniswap_v2` inherits the `events` list
+    from the `uniswap_v2.yaml` file in the same directory. The deriving file
+    keeps its own `protocol` and `chains` — only `events` are inherited. This
+    is how DEX forks (Aerodrome, BaseSwap, SushiSwap-V3, …) reuse the UniV2/V3
+    decoder logic without duplicating event signatures and plugins.
+    """
+    raw_files: dict[str, dict[str, Any]] = {}
+    for p in sorted(path.glob("*.yaml")):
+        raw = yaml.safe_load(p.read_text())
+        if not isinstance(raw, dict) or "protocol" not in raw:
+            raise ValueError(f"Invalid mapping at {p}: missing 'protocol'")
+        raw_files[raw["protocol"]] = raw
+
+    mappings: list[ProtocolMapping] = []
+    for protocol, raw in raw_files.items():
+        resolved = _resolve_template(raw, raw_files, source=protocol, seen=set())
+        mappings.append(_build_protocol_mapping(resolved, source=protocol))
+    return mappings
+
+
+def _resolve_template(
+    raw: dict[str, Any],
+    all_raws: dict[str, dict[str, Any]],
+    source: str,
+    seen: set[str],
+) -> dict[str, Any]:
+    template = raw.get("template")
+    if template is None:
+        return raw
+    if template in seen:
+        raise ValueError(f"Cyclic template inheritance via {source!r}")
+    parent_raw = all_raws.get(template)
+    if parent_raw is None:
+        raise ValueError(
+            f"Mapping {source!r} declares template {template!r} but no such mapping exists"
+        )
+    seen = seen | {source}
+    parent = _resolve_template(parent_raw, all_raws, source=template, seen=seen)
+    merged = dict(raw)
+    if "events" not in merged:
+        merged["events"] = parent.get("events", [])
+    return merged
 
 
 def _build_event_mapping(raw: dict[str, Any]) -> EventMapping:

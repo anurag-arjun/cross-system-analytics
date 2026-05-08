@@ -50,5 +50,11 @@ secrets/
 .tickets/
 .tickets-archive-*/
 
+# Claude Code runtime state (facts.md / journal.md ARE tracked)
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks/
+.claude/trajectory/
+.claude/settings.local.json
+
 # Archive
 archive/

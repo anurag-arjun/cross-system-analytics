@@ -1,0 +1,3 @@
+protocol: synthswap_v2
+chains: [base]
+template: uniswap_v2
