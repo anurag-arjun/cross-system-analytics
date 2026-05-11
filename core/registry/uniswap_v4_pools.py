@@ -68,18 +68,22 @@ class UniV4PoolStore:
         ]
         if not rows:
             return 0
+        # `execute_values` builds one multi-row INSERT instead of N round-trips.
+        # On Base UniV4 (3.2M pools, 50k per chunk) this is ~10x faster than
+        # the equivalent executemany.
+        from psycopg2.extras import execute_values
+
         sql = """
             INSERT INTO uniswap_v4_pools (
                 chain, pool_id, pool_manager, currency0, currency1,
                 fee, tick_spacing, hooks,
                 init_block, init_block_time, init_tx_hash
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES %s
             ON CONFLICT (chain, pool_id) DO NOTHING
         """
         with self._conn() as conn:
             with conn.cursor() as cur:
-                cur.executemany(sql, rows)
+                execute_values(cur, sql, rows, page_size=2000)
         return len(rows)
 
     def all_rows(self) -> list[UniV4Pool]:

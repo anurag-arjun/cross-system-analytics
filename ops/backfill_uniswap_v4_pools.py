@@ -29,15 +29,28 @@ from core.registry.uniswap_v4_pools import UniV4Pool, UniV4PoolStore
 load_dotenv()
 
 
-# Canonical PoolManager addresses per chain. Hand-curated — not in
-# protocol_contracts because Dune's bootstrap missed some.
+# Canonical PoolManager addresses per chain. Verified via Uniswap docs +
+# Etherscan getcontractcreation where supported by the free tier (Ethereum,
+# Arbitrum, Polygon). Base + Optimism are not on the Etherscan V2 free
+# plan, so we use a conservative `from_block=0` and let HyperSync's
+# (address, topic0) filter do the heavy lifting.
 POOL_MANAGERS: dict[str, str] = {
     "ethereum": "0x000000000004444c5dc75cb358380d2e3de08a90",
+    "base": "0x498581ff718922c3f8e6a244956af099b2652b2b",
+    "arbitrum": "0x360e68faccca8ca495c1b759fd9eee466db9fb32",
+    "optimism": "0x9a13f98cb987694c9f086b1f5eb990eea8264ec3",
+    "polygon": "0x67366782805870060151383f4bbff9dab53e5cd6",
 }
 
-# Approximate deployment blocks per chain. Used as the backfill lower bound.
+# Deployment block per chain when we have it — Etherscan-verified for
+# Ethereum/Arbitrum/Polygon. Chains without a verified block scan from 0;
+# HyperSync's filtered query keeps cost flat.
 DEPLOY_BLOCKS: dict[str, int] = {
     "ethereum": 21_688_329,
+    "arbitrum": 297_842_872,
+    "polygon": 66_980_384,
+    "base": 0,
+    "optimism": 0,
 }
 
 # UniV4 PoolManager URLs (HyperSync slugs).
@@ -187,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--chains",
         nargs="+",
-        default=["ethereum"],
+        default=sorted(POOL_MANAGERS.keys()),
         choices=sorted(POOL_MANAGERS.keys()),
     )
     parser.add_argument("--from-block", type=int, default=None)
