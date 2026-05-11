@@ -56,7 +56,7 @@ Cron + backfill run on the host (system Python venv at
    ```bash
    ssh shieldtx-vps 'cd ~/nexus-analytics && docker compose -f docker-compose.prod.yml up -d ch pg'
    # Wait for healthchecks, then apply Postgres schemas:
-   ssh shieldtx-vps 'cd ~/nexus-analytics && for f in core/schemas/*.sql; do
+   ssh shieldtx-vps 'cd ~/nexus-analytics && for f in core/schemas/postgres/*.sql; do
        docker exec -i nexus-pg psql -U nexus -d nexus_ops < "$f" || true;
    done'
    ```

@@ -8,7 +8,7 @@ services:
       - "9000:9000"
     volumes:
       - clickhouse_data:/var/lib/clickhouse
-      - ./core/schemas:/docker-entrypoint-initdb.d:ro
+      - ./core/schemas/clickhouse:/docker-entrypoint-initdb.d:ro
     environment:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: default

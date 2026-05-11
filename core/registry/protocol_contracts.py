@@ -5,7 +5,7 @@ Two backends:
 - ``InMemoryProtocolContractStore`` — a dict for tests, ad-hoc scripts, and
   small fixture sets.
 - ``PostgresProtocolContractStore`` — production. Reads/writes
-  ``protocol_contracts`` (see core/schemas/protocol_contracts.sql).
+  ``protocol_contracts`` (see core/schemas/postgres/protocol_contracts.sql).
 
 ``make_resolver(store)`` returns the ``(chain, address) -> protocol | None``
 callable expected by ``DecoderRegistry`` so the EVM adapter can use either

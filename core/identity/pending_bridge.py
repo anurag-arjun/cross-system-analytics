@@ -196,7 +196,7 @@ class InMemoryPendingBridgeStore(PendingBridgeStore):
 class PostgresPendingBridgeStore(PendingBridgeStore):
     """Postgres-backed store for pending bridge_out events.
 
-    Expects a table created by /core/schemas/pending_bridge_outs.sql.
+    Expects a table created by /core/schemas/postgres/pending_bridge_outs.sql.
     """
 
     def __init__(self, dsn: str) -> None:
