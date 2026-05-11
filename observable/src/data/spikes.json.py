@@ -99,15 +99,89 @@ hourly_timeline = [
     for r in timeline
 ]
 
+# 5. Daily activity per venue (last 30 days). Each day is compared against
+#    the 7-day rolling average ending the day before. Same alert thresholds
+#    as the hourly variant — gives a slower-burn signal that survives intra-
+#    day noise.
+daily_spikes = client.query("""
+    WITH daily AS (
+        SELECT
+            venue, protocol, chain,
+            toDate(timestamp) as day,
+            count() as events,
+            uniqExact(entity_id) as wallets
+        FROM canonical_events
+        WHERE venue != '' AND protocol != ''
+          AND timestamp >= now() - INTERVAL 30 DAY
+        GROUP BY venue, protocol, chain, day
+    ),
+    rolling AS (
+        SELECT venue, protocol, chain, day, events, wallets,
+            avg(events) OVER (
+                PARTITION BY venue, protocol, chain
+                ORDER BY day
+                ROWS BETWEEN 7 PRECEDING AND 1 PRECEDING
+            ) as rolling_avg_events,
+            avg(wallets) OVER (
+                PARTITION BY venue, protocol, chain
+                ORDER BY day
+                ROWS BETWEEN 7 PRECEDING AND 1 PRECEDING
+            ) as rolling_avg_wallets,
+            count() OVER (
+                PARTITION BY venue, protocol, chain
+                ORDER BY day
+                ROWS BETWEEN 7 PRECEDING AND 1 PRECEDING
+            ) as prior_days
+        FROM daily
+    )
+    SELECT
+        venue, protocol, chain, day, events, wallets,
+        round(events / greatest(rolling_avg_events, 1), 1) as events_ratio,
+        round(wallets / greatest(rolling_avg_wallets, 1), 1) as wallets_ratio,
+        multiIf(
+            events_ratio >= 4 OR wallets_ratio >= 4, 'extreme',
+            events_ratio >= 2 OR wallets_ratio >= 2, 'high',
+            'normal'
+        ) as alert
+    FROM rolling
+    WHERE prior_days >= 3       -- need at least 3 days of history for a sane baseline
+      AND rolling_avg_events >= 5
+      AND events >= 10
+      AND day >= today() - INTERVAL 7 DAY
+    ORDER BY events_ratio DESC
+    LIMIT 200
+""").result_rows
+
+daily = [
+    {
+        "venue": r[0][:12] + "...", "venue_full": r[0],
+        "protocol": r[1], "chain": r[2],
+        "day": str(r[3]),
+        "events": r[4], "wallets": r[5],
+        "events_ratio": float(r[6]),
+        "wallets_ratio": float(r[7]),
+        "alert": r[8],
+    }
+    for r in daily_spikes
+]
+
+daily_extreme = [s for s in daily if s["alert"] == "extreme"]
+daily_high = [s for s in daily if s["alert"] == "high"]
+
 output = {
     "kpis": {
         "venues_tracked": len(spikes),
         "extreme_alerts": len(extreme),
         "high_alerts": len(high),
+        "daily_extreme_alerts": len(daily_extreme),
+        "daily_high_alerts": len(daily_high),
         "protocols_tracked": len(protocols),
     },
     "extreme": extreme[:25],
     "high": high[:25],
+    "daily_extreme": daily_extreme[:25],
+    "daily_high": daily_high[:25],
+    "daily": daily[:50],
     "protocols": protocols,
     "timeline": hourly_timeline,
     "spikes": spikes[:50],

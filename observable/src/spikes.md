@@ -11,20 +11,20 @@ Apps/contracts with &gt;200% increase in hourly or daily interactions vs rolling
 const spikes = FileAttachment("data/spikes.json").json();
 ```
 
-<div class="grid grid-cols-4" style="gap: 1rem; margin-bottom: 2rem;">
+<div class="grid grid-cols-4" style="gap: 1rem; margin-bottom: 1rem;">
   <div class="card">
     <h2>Venues Tracked</h2>
     <span class="big">${spikes.kpis.venues_tracked.toLocaleString()}</span>
   </div>
   <div class="card" style="border-left: 4px solid #ef4444;">
-    <h2>Extreme Spikes</h2>
+    <h2>Hourly Extreme</h2>
     <span class="big" style="color: #ef4444;">${spikes.kpis.extreme_alerts}</span>
-    <span class="muted">&ge;400% vs rolling avg</span>
+    <span class="muted">&ge;400% vs 24h avg</span>
   </div>
   <div class="card" style="border-left: 4px solid #f59e0b;">
-    <h2>High Spikes</h2>
+    <h2>Hourly High</h2>
     <span class="big" style="color: #f59e0b;">${spikes.kpis.high_alerts}</span>
-    <span class="muted">&ge;200% vs rolling avg</span>
+    <span class="muted">&ge;200% vs 24h avg</span>
   </div>
   <div class="card">
     <h2>Protocols</h2>
@@ -32,11 +32,24 @@ const spikes = FileAttachment("data/spikes.json").json();
   </div>
 </div>
 
-<div class="banner">
-  <strong>📊 Methodology:</strong> Compares each hour's event/wallet count vs 24h rolling average. &ge;200% = high, &ge;400% = extreme. <em>Current data: 2 chains, 7-day window. Expanding with multi-chain ingestion.</em>
+<div class="grid grid-cols-2" style="gap: 1rem; margin-bottom: 2rem;">
+  <div class="card" style="border-left: 4px solid #dc2626;">
+    <h2>Daily Extreme</h2>
+    <span class="big" style="color: #dc2626;">${spikes.kpis.daily_extreme_alerts}</span>
+    <span class="muted">&ge;400% vs 7d rolling avg</span>
+  </div>
+  <div class="card" style="border-left: 4px solid #d97706;">
+    <h2>Daily High</h2>
+    <span class="big" style="color: #d97706;">${spikes.kpis.daily_high_alerts}</span>
+    <span class="muted">&ge;200% vs 7d rolling avg</span>
+  </div>
 </div>
 
-## Extreme Spikes (&ge;400%)
+<div class="banner">
+  <strong>📊 Methodology:</strong> Two timescales. <em>Hourly</em> compares each hour vs the 24h rolling average — catches intraday surges. <em>Daily</em> compares each day vs the 7-day rolling average — catches slower-burn trends that survive intraday noise. &ge;200% = high, &ge;400% = extreme. Daily requires &ge;10 events/day to qualify (vs &ge;3 for hourly).
+</div>
+
+## Hourly Extreme Spikes (&ge;400%)
 
 ```js
 Inputs.table(spikes.extreme, {
@@ -59,7 +72,7 @@ Inputs.table(spikes.extreme, {
 })
 ```
 
-## High Spikes (&ge;200%)
+## Hourly High Spikes (&ge;200%)
 
 ```js
 Inputs.table(spikes.high, {
@@ -82,7 +95,55 @@ Inputs.table(spikes.high, {
 })
 ```
 
-## Spike Ratios (Events vs Wallets)
+## Daily Extreme Spikes (&ge;400% vs 7d avg)
+
+```js
+Inputs.table(spikes.daily_extreme, {
+  columns: ["venue", "protocol", "chain", "day", "events", "wallets", "events_ratio", "wallets_ratio"],
+  format: {
+    events_ratio: d => `${d}x`,
+    wallets_ratio: d => `${d}x`
+  },
+  header: {
+    venue: "Contract",
+    protocol: "Protocol",
+    chain: "Chain",
+    day: "Day",
+    events: "Events",
+    wallets: "Wallets",
+    events_ratio: "Events Spike",
+    wallets_ratio: "Wallets Spike"
+  },
+  sort: "events_ratio",
+  reverse: true
+})
+```
+
+## Daily High Spikes (&ge;200% vs 7d avg)
+
+```js
+Inputs.table(spikes.daily_high, {
+  columns: ["venue", "protocol", "chain", "day", "events", "wallets", "events_ratio", "wallets_ratio"],
+  format: {
+    events_ratio: d => `${d}x`,
+    wallets_ratio: d => `${d}x`
+  },
+  header: {
+    venue: "Contract",
+    protocol: "Protocol",
+    chain: "Chain",
+    day: "Day",
+    events: "Events",
+    wallets: "Wallets",
+    events_ratio: "Events Spike",
+    wallets_ratio: "Wallets Spike"
+  },
+  sort: "events_ratio",
+  reverse: true
+})
+```
+
+## Hourly Spike Ratios (Events vs Wallets)
 
 ```js
 Plot.plot({
