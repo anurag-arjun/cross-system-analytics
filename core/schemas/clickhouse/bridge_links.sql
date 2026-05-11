@@ -2,7 +2,7 @@
 -- Cross-chain bridge linking table. Joins bridge_out on source chain
 -- to bridge_in on destination chain via link_key.
 
-CREATE TABLE IF NOT EXISTS bridge_links (
+CREATE TABLE IF NOT EXISTS nexus.bridge_links (
   link_key           String,
   link_key_type      LowCardinality(String),  -- 'across_deposit_id', 'layerzero_guid', etc.
   

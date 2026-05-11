@@ -1,7 +1,7 @@
 -- /core/schemas/entity_relationships.sql
 -- Identity graph: links entities across systems with confidence scores.
 
-CREATE TABLE IF NOT EXISTS entity_relationships (
+CREATE TABLE IF NOT EXISTS nexus.entity_relationships (
   from_entity        String,
   from_entity_type   LowCardinality(String),
   to_entity          String,

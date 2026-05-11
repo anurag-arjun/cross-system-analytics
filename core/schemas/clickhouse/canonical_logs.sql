@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS canonical_logs (
+CREATE TABLE IF NOT EXISTS nexus.canonical_logs (
   source_system      LowCardinality(String),  -- 'evm_base', 'evm_ethereum', etc.
   chain              LowCardinality(String),
   block_number       UInt64,

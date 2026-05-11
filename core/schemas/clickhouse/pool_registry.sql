@@ -1,7 +1,7 @@
 -- /core/schemas/pool_registry.sql
 -- Uniswap V2/V3 pool registry for token resolution.
 
-CREATE TABLE IF NOT EXISTS pool_registry (
+CREATE TABLE IF NOT EXISTS nexus.pool_registry (
   pool_address       String,
   chain              LowCardinality(String),
   protocol           LowCardinality(String),

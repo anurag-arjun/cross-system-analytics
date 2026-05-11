@@ -2,7 +2,7 @@
 -- Run this via ClickHouse init or manually.
 -- Sort key (entity_id, timestamp) optimises trajectory queries.
 
-CREATE TABLE IF NOT EXISTS canonical_events (
+CREATE TABLE IF NOT EXISTS nexus.canonical_events (
   -- identity (generic, not wallet-specific)
   entity_id          String,
   entity_type        LowCardinality(String),  -- 'wallet', 'user_id', 'email_hash', 'device_id'

@@ -2,7 +2,7 @@
 -- Time-series token prices for USD enrichment.
 -- Updated hourly; ASOF JOIN against canonical_events.timestamp.
 
-CREATE TABLE IF NOT EXISTS token_prices (
+CREATE TABLE IF NOT EXISTS nexus.token_prices (
   token_address      String,
   chain              LowCardinality(String),
   timestamp          DateTime64(3),

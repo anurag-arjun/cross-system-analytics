@@ -2,7 +2,7 @@
 -- Static token metadata: symbols, decimals, names per chain.
 -- Populated once per token; decimals rarely change.
 
-CREATE TABLE IF NOT EXISTS token_metadata (
+CREATE TABLE IF NOT EXISTS nexus.token_metadata (
   token_address      String,
   chain              LowCardinality(String),
   symbol             LowCardinality(String),
