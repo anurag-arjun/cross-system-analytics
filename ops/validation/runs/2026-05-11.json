@@ -1,0 +1,1674 @@
+{
+  "generated_at": "2026-05-11T09:33:37.859543+00:00",
+  "window_start": "2026-05-10T09:33:33.417165+00:00",
+  "window_end": "2026-05-11T09:33:33.417165+00:00",
+  "chains": [
+    "ethereum",
+    "base",
+    "arbitrum",
+    "optimism",
+    "polygon"
+  ],
+  "dune_bytes_scanned": 4658,
+  "summary": {
+    "gap": 184
+  },
+  "rows": [
+    {
+      "chain": "arbitrum",
+      "protocol": "1inch-LOP_v4.0",
+      "our_count": 0,
+      "dune_count": 83,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "akronswap_v2",
+      "our_count": 0,
+      "dune_count": 3,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "apeswap_v2",
+      "our_count": 0,
+      "dune_count": 41,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "arbswap_v1",
+      "our_count": 0,
+      "dune_count": 217,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "auragi_v1",
+      "our_count": 0,
+      "dune_count": 15,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "balancer_v2",
+      "our_count": 0,
+      "dune_count": 723,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "balancer_v3",
+      "our_count": 0,
+      "dune_count": 1671,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "camelot_v2",
+      "our_count": 0,
+      "dune_count": 1683,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.00047709923664122136
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "camelot_v3",
+      "our_count": 0,
+      "dune_count": 22962,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.00010050251256281407
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "chronos_v1",
+      "our_count": 0,
+      "dune_count": 85,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "dackieswap_v3",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "dodo_v1",
+      "our_count": 0,
+      "dune_count": 132,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "dodo_v2",
+      "our_count": 0,
+      "dune_count": 768,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "fluid_v1",
+      "our_count": 0,
+      "dune_count": 1660,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "gammaswap_v1",
+      "our_count": 0,
+      "dune_count": 388,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0016181229773462784
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "integral_vsize",
+      "our_count": 0,
+      "dune_count": 67,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "kyberswap_velastic",
+      "our_count": 0,
+      "dune_count": 35,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "kyberswap_velastic_2",
+      "our_count": 0,
+      "dune_count": 4,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "maverick_v2",
+      "our_count": 0,
+      "dune_count": 832,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "mindgames_v1",
+      "our_count": 0,
+      "dune_count": 2,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "native_v1",
+      "our_count": 0,
+      "dune_count": 946,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "oasisswap_v1",
+      "our_count": 0,
+      "dune_count": 11,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "pancakeswap_v2",
+      "our_count": 0,
+      "dune_count": 745,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "pancakeswap_v3",
+      "our_count": 0,
+      "dune_count": 52901,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "pancakeswap_vpcsx",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "pancakeswap_vstableswap",
+      "our_count": 0,
+      "dune_count": 37,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "ramses_v1",
+      "our_count": 0,
+      "dune_count": 26,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "ramses_v2",
+      "our_count": 0,
+      "dune_count": 764,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "sharkyswap_v1",
+      "our_count": 0,
+      "dune_count": 7,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "smardex_v1",
+      "our_count": 0,
+      "dune_count": 6,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "solidly_v3",
+      "our_count": 0,
+      "dune_count": 402,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "sushiswap_v1",
+      "our_count": 0,
+      "dune_count": 2436,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0023094688221709007
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "sushiswap_v2",
+      "our_count": 0,
+      "dune_count": 5650,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.00186219739292365
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "trader_joe_v2",
+      "our_count": 0,
+      "dune_count": 4,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "trader_joe_v2.1",
+      "our_count": 0,
+      "dune_count": 974,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "trader_joe_v2.2",
+      "our_count": 0,
+      "dune_count": 492,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "uniswap_v2",
+      "our_count": 0,
+      "dune_count": 19939,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0008386623335779432
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "uniswap_v3",
+      "our_count": 0,
+      "dune_count": 136866,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0025727262274347477
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "uniswap_v4",
+      "our_count": 0,
+      "dune_count": 34147,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "wombatexchange_v2",
+      "our_count": 0,
+      "dune_count": 6,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "arbitrum",
+      "protocol": "zyberswap_v1",
+      "our_count": 0,
+      "dune_count": 85,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "1inch-LOP_v4.0",
+      "our_count": 0,
+      "dune_count": 3839,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "aerodrome_v1",
+      "our_count": 0,
+      "dune_count": 76491,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "aerodrome_vslipstream",
+      "our_count": 0,
+      "dune_count": 475815,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.00458266607217765
+    },
+    {
+      "chain": "base",
+      "protocol": "alienbase_v1",
+      "our_count": 0,
+      "dune_count": 233,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "alienbase_v3",
+      "our_count": 0,
+      "dune_count": 11578,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0026707755521314844
+    },
+    {
+      "chain": "base",
+      "protocol": "autotronic_v1",
+      "our_count": 0,
+      "dune_count": 3,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "base",
+      "protocol": "balancer_v2",
+      "our_count": 0,
+      "dune_count": 1676,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "balancer_v3",
+      "our_count": 0,
+      "dune_count": 1881,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "baseswap_v2",
+      "our_count": 0,
+      "dune_count": 1449,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.007540056550424128
+    },
+    {
+      "chain": "base",
+      "protocol": "baseswap_v3",
+      "our_count": 0,
+      "dune_count": 1778,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.011128775834658187
+    },
+    {
+      "chain": "base",
+      "protocol": "carbon_defi_v1",
+      "our_count": 0,
+      "dune_count": 109,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "citadelswap_v1",
+      "our_count": 0,
+      "dune_count": 67,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.15
+    },
+    {
+      "chain": "base",
+      "protocol": "dackieswap_v3",
+      "our_count": 0,
+      "dune_count": 5,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "derpdex_v3",
+      "our_count": 0,
+      "dune_count": 13,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "elfomofi_v1",
+      "our_count": 0,
+      "dune_count": 6379,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "elk_finance_v1",
+      "our_count": 0,
+      "dune_count": 27,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "flashliquidity_v1",
+      "our_count": 0,
+      "dune_count": 2,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "fluid_v1",
+      "our_count": 0,
+      "dune_count": 740,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "horizondex_v1",
+      "our_count": 0,
+      "dune_count": 38,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "infusion_v1",
+      "our_count": 0,
+      "dune_count": 870,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.02593192868719611
+    },
+    {
+      "chain": "base",
+      "protocol": "kyberswap_velastic",
+      "our_count": 0,
+      "dune_count": 19,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "leetswap_v2",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "base",
+      "protocol": "maverick_v1",
+      "our_count": 0,
+      "dune_count": 3665,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "maverick_v2",
+      "our_count": 0,
+      "dune_count": 5022,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "moonbase_v1",
+      "our_count": 0,
+      "dune_count": 6,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "native_v1",
+      "our_count": 0,
+      "dune_count": 1423,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "openocean_v2",
+      "our_count": 0,
+      "dune_count": 2490,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "pancakeswap_v2",
+      "our_count": 0,
+      "dune_count": 400,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "pancakeswap_v3",
+      "our_count": 0,
+      "dune_count": 250390,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "pancakeswap_vinfinity_cl",
+      "our_count": 0,
+      "dune_count": 21347,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "pancakeswap_vinfinity_lb",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "rocketswap_v1",
+      "our_count": 0,
+      "dune_count": 109,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.01098901098901099
+    },
+    {
+      "chain": "base",
+      "protocol": "scale_v1",
+      "our_count": 0,
+      "dune_count": 1412,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0029542097488921715
+    },
+    {
+      "chain": "base",
+      "protocol": "sharkswap_v1",
+      "our_count": 0,
+      "dune_count": 327,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.016216216216216217
+    },
+    {
+      "chain": "base",
+      "protocol": "smardex_v1",
+      "our_count": 0,
+      "dune_count": 54,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "sobal_v1",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "base",
+      "protocol": "solidly_v3",
+      "our_count": 0,
+      "dune_count": 4646,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "soswap_v1",
+      "our_count": 0,
+      "dune_count": 98,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.03333333333333333
+    },
+    {
+      "chain": "base",
+      "protocol": "stablebase_v1",
+      "our_count": 0,
+      "dune_count": 26,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "sushiswap_v1",
+      "our_count": 0,
+      "dune_count": 2548,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0042158516020236085
+    },
+    {
+      "chain": "base",
+      "protocol": "sushiswap_v2",
+      "our_count": 0,
+      "dune_count": 48,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "swaap_v2",
+      "our_count": 0,
+      "dune_count": 1096,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "swapbased_v1",
+      "our_count": 0,
+      "dune_count": 67,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "tessera_v_v1",
+      "our_count": 0,
+      "dune_count": 17265,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "throne_exchange_v2",
+      "our_count": 0,
+      "dune_count": 3,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "throne_exchange_v3",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "base",
+      "protocol": "torus_v1",
+      "our_count": 0,
+      "dune_count": 4,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": null
+    },
+    {
+      "chain": "base",
+      "protocol": "uniswap_v2",
+      "our_count": 0,
+      "dune_count": 112147,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.008639201618609038
+    },
+    {
+      "chain": "base",
+      "protocol": "uniswap_v3",
+      "our_count": 0,
+      "dune_count": 257131,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.03343135539327617
+    },
+    {
+      "chain": "base",
+      "protocol": "uniswap_v4",
+      "our_count": 0,
+      "dune_count": 442844,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "base",
+      "protocol": "xchange_v1",
+      "our_count": 0,
+      "dune_count": 48,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.03125
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "0x-API_vv2",
+      "our_count": 0,
+      "dune_count": 86,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "1inch-LOP_v4.0",
+      "our_count": 0,
+      "dune_count": 3562,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "balancer_v1",
+      "our_count": 0,
+      "dune_count": 1110,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "balancer_v2",
+      "our_count": 0,
+      "dune_count": 877,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "balancer_v3",
+      "our_count": 0,
+      "dune_count": 1377,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "bancor_v1",
+      "our_count": 0,
+      "dune_count": 1142,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "bancor_v3",
+      "our_count": 0,
+      "dune_count": 100,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "carbon_defi_v1",
+      "our_count": 0,
+      "dune_count": 49,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory Twocrypto",
+      "our_count": 0,
+      "dune_count": 629,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory V1 Meta",
+      "our_count": 0,
+      "dune_count": 114,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory V1 Plain",
+      "our_count": 0,
+      "dune_count": 228,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory V1 Stableswap Plain",
+      "our_count": 0,
+      "dune_count": 839,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory V1 Stableswap Plain NG",
+      "our_count": 0,
+      "dune_count": 3275,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory V2",
+      "our_count": 0,
+      "dune_count": 447,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vFactory V2 updated",
+      "our_count": 0,
+      "dune_count": 3167,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "curve_vRegular",
+      "our_count": 0,
+      "dune_count": 1600,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "defiswap_v1",
+      "our_count": 0,
+      "dune_count": 510,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.005235602094240838
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "dfx_v0.5",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "dodo_v1",
+      "our_count": 0,
+      "dune_count": 127,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "dodo_v2",
+      "our_count": 0,
+      "dune_count": 4748,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "ekubo_v1",
+      "our_count": 0,
+      "dune_count": 776,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "ekubo_v3",
+      "our_count": 0,
+      "dune_count": 8834,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "eulerswap_v1",
+      "our_count": 0,
+      "dune_count": 31,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "fluid_v1",
+      "our_count": 0,
+      "dune_count": 1370,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "fraxswap_v1",
+      "our_count": 0,
+      "dune_count": 208,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.01020408163265306
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "integral_vsize",
+      "our_count": 0,
+      "dune_count": 23,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "kyberswap_vclassic",
+      "our_count": 0,
+      "dune_count": 176,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "kyberswap_velastic",
+      "our_count": 0,
+      "dune_count": 5,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "kyberswap_velastic_2",
+      "our_count": 0,
+      "dune_count": 2,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "maverick_v1",
+      "our_count": 0,
+      "dune_count": 54,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "maverick_v2",
+      "our_count": 0,
+      "dune_count": 437,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "native_v1",
+      "our_count": 0,
+      "dune_count": 2172,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "pancakeswap_v2",
+      "our_count": 0,
+      "dune_count": 667,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.005154639175257732
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "pancakeswap_v3",
+      "our_count": 0,
+      "dune_count": 14985,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "shibaswap_v1",
+      "our_count": 0,
+      "dune_count": 757,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.004750593824228029
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "solidly_v3",
+      "our_count": 0,
+      "dune_count": 289,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "supernova_v2",
+      "our_count": 0,
+      "dune_count": 53,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "supernova_v3",
+      "our_count": 0,
+      "dune_count": 4053,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0013882461823229986
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "sushiswap_v1",
+      "our_count": 0,
+      "dune_count": 4141,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.018548387096774192
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "sushiswap_v2",
+      "our_count": 0,
+      "dune_count": 1661,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.008944543828264758
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "swaap_v2",
+      "our_count": 0,
+      "dune_count": 466,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "swapr_v1",
+      "our_count": 0,
+      "dune_count": 2,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "uniswap_v1",
+      "our_count": 0,
+      "dune_count": 363,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "uniswap_v2",
+      "our_count": 0,
+      "dune_count": 93436,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.006857132252646816
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "uniswap_v3",
+      "our_count": 0,
+      "dune_count": 117207,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.008259147337471415
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "uniswap_v4",
+      "our_count": 0,
+      "dune_count": 266121,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.01825050956446097
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "verse_dex_v1",
+      "our_count": 0,
+      "dune_count": 227,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "xchange_v1",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "ethereum",
+      "protocol": "xchange_v2",
+      "our_count": 0,
+      "dune_count": 1,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "1inch-LOP_v4.0",
+      "our_count": 0,
+      "dune_count": 20,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "balancer_v2",
+      "our_count": 0,
+      "dune_count": 2349,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "bridgers_v1",
+      "our_count": 0,
+      "dune_count": 12,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "curve_v1",
+      "our_count": 0,
+      "dune_count": 2041,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "dackieswap_v2",
+      "our_count": 0,
+      "dune_count": 22,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "dackieswap_v3",
+      "our_count": 0,
+      "dune_count": 156,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "elk_finance_v1",
+      "our_count": 0,
+      "dune_count": 366,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "fraxswap_v1",
+      "our_count": 0,
+      "dune_count": 257,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "kyberswap_vclassic",
+      "our_count": 0,
+      "dune_count": 40,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "kyberswap_velastic",
+      "our_count": 0,
+      "dune_count": 649,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "kyberswap_velastic_2",
+      "our_count": 0,
+      "dune_count": 818,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "openocean_v2",
+      "our_count": 0,
+      "dune_count": 1687,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "solidly_v3",
+      "our_count": 0,
+      "dune_count": 8503,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.014655369819097779
+    },
+    {
+      "chain": "optimism",
+      "protocol": "sushiswap_v2",
+      "our_count": 0,
+      "dune_count": 2719,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.014075067024128687
+    },
+    {
+      "chain": "optimism",
+      "protocol": "sushiswap_vtrident-cpp",
+      "our_count": 0,
+      "dune_count": 185,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "sushiswap_vtrident-sp",
+      "our_count": 0,
+      "dune_count": 17,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "swaap_v2",
+      "our_count": 0,
+      "dune_count": 236,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "uniswap_v2",
+      "our_count": 0,
+      "dune_count": 915,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.00234192037470726
+    },
+    {
+      "chain": "optimism",
+      "protocol": "uniswap_v3",
+      "our_count": 0,
+      "dune_count": 57819,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.018301472892510186
+    },
+    {
+      "chain": "optimism",
+      "protocol": "uniswap_v4",
+      "our_count": 0,
+      "dune_count": 22095,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "velodrome_v1",
+      "our_count": 0,
+      "dune_count": 13488,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.005676546040063316
+    },
+    {
+      "chain": "optimism",
+      "protocol": "velodrome_v2",
+      "our_count": 0,
+      "dune_count": 57941,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "optimism",
+      "protocol": "velodrome_v2_cl",
+      "our_count": 0,
+      "dune_count": 74335,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.01007004803587776
+    },
+    {
+      "chain": "optimism",
+      "protocol": "zipswap_v1",
+      "our_count": 0,
+      "dune_count": 856,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.007453416149068323
+    },
+    {
+      "chain": "polygon",
+      "protocol": "1inch-LOP_v4.0",
+      "our_count": 0,
+      "dune_count": 203,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "balancer_v2",
+      "our_count": 0,
+      "dune_count": 2794,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "dfyn_v1",
+      "our_count": 0,
+      "dune_count": 500,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0072992700729927005
+    },
+    {
+      "chain": "polygon",
+      "protocol": "dodo_v1",
+      "our_count": 0,
+      "dune_count": 571,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "dodo_v2",
+      "our_count": 0,
+      "dune_count": 1285,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "dooar_v2",
+      "our_count": 0,
+      "dune_count": 385,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.004464285714285714
+    },
+    {
+      "chain": "polygon",
+      "protocol": "fluid_v1",
+      "our_count": 0,
+      "dune_count": 22,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "honeyswap_v2",
+      "our_count": 0,
+      "dune_count": 305,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.030120481927710843
+    },
+    {
+      "chain": "polygon",
+      "protocol": "kyberswap_vclassic",
+      "our_count": 0,
+      "dune_count": 124,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "kyberswap_velastic_2",
+      "our_count": 0,
+      "dune_count": 12,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "quickswap_v2",
+      "our_count": 0,
+      "dune_count": 1318909,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -3.766413323059395e-05
+    },
+    {
+      "chain": "polygon",
+      "protocol": "quickswap_v3",
+      "our_count": 0,
+      "dune_count": 42495,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0009050204820424884
+    },
+    {
+      "chain": "polygon",
+      "protocol": "smardex_v1",
+      "our_count": 0,
+      "dune_count": 8,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "sushiswap_v1",
+      "our_count": 0,
+      "dune_count": 3363,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.012457825071372957
+    },
+    {
+      "chain": "polygon",
+      "protocol": "sushiswap_v2",
+      "our_count": 0,
+      "dune_count": 2544,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.0046801872074883
+    },
+    {
+      "chain": "polygon",
+      "protocol": "swaap_v2",
+      "our_count": 0,
+      "dune_count": 281,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    },
+    {
+      "chain": "polygon",
+      "protocol": "uniswap_v2",
+      "our_count": 0,
+      "dune_count": 12877,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.9093853891398858
+    },
+    {
+      "chain": "polygon",
+      "protocol": "uniswap_v3",
+      "our_count": 0,
+      "dune_count": 75153,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": -0.020239750976885885
+    },
+    {
+      "chain": "polygon",
+      "protocol": "uniswap_v4",
+      "our_count": 0,
+      "dune_count": 40125,
+      "ratio": 0.0,
+      "status": "gap",
+      "delta_vs_baseline": 0.0
+    }
+  ]
+}
