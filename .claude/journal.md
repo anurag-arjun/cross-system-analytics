@@ -1,5 +1,111 @@
 # Journal
 
+## 2026-05-11 — Phase D: VPS deploy live at analytics.themuse.one
+
+Worked on: na-7pax (Phase D / na-7715 epic). Shipped the BD MVP to
+shieldtx-vps. Site is live at https://analytics.themuse.one behind
+Cloudflare Access (email allowlist).
+
+Decisions:
+  - **Cloudflare Tunnel + Access, not nginx + LE + basic-auth**: VPS
+    has no free public 80/443 (devpush Traefik occupies 8090/8443) and
+    cloudflared is the path of least resistance for auth-gated public
+    HTTPS. Ditched the original facts.md plan same-day.
+  - **Self-contained `docker-compose.prod.yml`**: doesn't extend the
+    dev compose. Skips dagster/observable, runs nexus-{ch,pg,api,nginx}
+    on shifted host-loopback ports (18080/18123/19000/15434) so it
+    coexists with shieldtx-{ch,pg} without collision.
+  - **API in Docker (slim Python 3.12 image), frontend built on the
+    VPS via pnpm + corepack**: nginx container reverse-proxies /api/*
+    to the api container and serves the static SPA from `frontend/dist`.
+  - **Schemas split into clickhouse/ + postgres/ subdirs** with all CH
+    tables qualified `nexus.X` and a leading `00_database.sql`. Was
+    a pre-existing latent bug — old layout would crash CH init on a
+    fresh volume because 6/13 .sql files were Postgres-flavored.
+  - **Cloudflare Access via One-Time PIN (email magic link)** —
+    initial choice. Gate intercepted requests cleanly per curl tests,
+    but the OTP email never delivered (Gmail + a fresh CF One account
+    on team `rakesh145`; even after adding the documented
+    `Login Method = One-time PIN` Require rule). Likely a CF
+    suppression list issue.
+  - **Reverted to nginx HTTP basic-auth same day**: `auth_basic` block
+    in `ops/nginx/nexus.conf`, apr1-hashed htpasswd at
+    `ops/nginx/htpasswd` (gitignored, user `nexus`). CF Access app
+    deleted; Cloudflare Tunnel still terminates TLS.
+
+Bugs found + fixed mid-deploy:
+  - core/pyproject.toml not pip-installable → installed deps directly,
+    use PYTHONPATH=. (matches dev convention).
+  - run_ingestion.py + run_backfill.py hardcoded dev port 8124 / 5434
+    even with .env present → patched to honor CLICKHOUSE_*  +
+    PROTOCOL_CONTRACTS_DSN env vars. Commit `921a54e`.
+  - import_dune_contracts.py loads dotenv AFTER argparse defaults →
+    workaround was passing --postgres explicitly. Same pattern in
+    run_ingestion/run_backfill (still latent for cron). Recorded as a
+    Gotcha in facts.md.
+  - eth-hash needs pycryptodome backend on a fresh venv — not in
+    core/pyproject.toml's deps. Added at install time.
+
+Files touched:
+  - api/Dockerfile, docker-compose.prod.yml, ops/nginx/nexus.conf,
+    docs/DEPLOY.md, .env.example (commit 639a9e6).
+  - core/schemas/{clickhouse,postgres}/* split + nexus.* qualifier +
+    00_database.sql (commits f233c89, c3fab87).
+  - ops/run_ingestion.py + ops/run_backfill.py env-aware (921a54e).
+  - On VPS only: /etc/cloudflared/{config.yml,4639ebdb-….json},
+    crontab entry, tmux session `backfill`.
+
+State at end of session:
+  - 5-min smoke ingestion landed 256k events + 17 bridge_links.
+  - Dune bootstrap landed 23k contracts + 23k labels into
+    protocol_contracts/contract_labels.
+  - 30-day backfill running in tmux session `backfill` on the VPS
+    (~30h ETA). Logs at `~/nexus-analytics/logs/backfill.log`.
+  - Hourly cron installed (next tick top-of-hour). Will overlap with
+    the backfill — both are idempotent so harmless.
+
+Open threads:
+  - Hourly cron at --lookback 60 will self-overlap (~2h wall). Tune
+    cadence after observing first few prod ticks.
+  - bridge_links step is suspiciously slow (~5 min for 17 matches);
+    investigate the per-pending-bridge CH lookup.
+  - Move load_dotenv() before argparse defaults in run_ingestion,
+    run_backfill, import_dune_contracts so prod doesn't depend on
+    `set -a; source .env; set +a` shell hygiene.
+  - Phase B work (15 single-protocol decoders + Curve + Balancer + 8
+    bridges) still parallelisable post-launch. Ticket epic na-09db.
+
+## 2026-05-11 — BD MVP: pipeline, API, frontend, parity dig
+
+Worked on: Closed na-rk8b (daily spikes), na-hmeu (parity validator +
+dex-priority resolver + Solidly fix), na-s7d8 (template audit), na-5run +
+na-lh5q (UniV4 multi-chain). Shipped Phase A (cron ingestion), Phase C.1
+(FastAPI 13 endpoints), Phase C.2 (React+Vite frontend), MVP roadmap doc.
+
+Decisions:
+  - **Cron over Dagster**: dagster dev never scheduled reliably. ops/run_ingestion.py
+    runs identically on laptop + VPS.
+  - **Resolver priority (is_manual, contract_type, source)**: was source-only.
+    Dex beats aggregator — fixes Aerodrome misrouting to bitget_dex_aggregator.
+  - **Solidly_v1 parent**: Aerodrome v1 + Velodrome v2 use
+    Swap(address,address,uint256,…), not UniV2. Audit confirmed no other forks
+    mis-templated.
+  - **MVP-first**: ship live URL with current decoder coverage, fill Phase B
+    post-launch. React+Vite, no shadcn dep.
+  - **VPS deploy spec**: analytics.themuse.one on shieldtx-vps, nginx+LE,
+    basic-auth, CH+PG bind 127.0.0.1.
+
+Files touched: core/registry/{protocol_contracts,dune_bootstrap,uniswap_v4_pools}.py,
+decoders/mappings/solidly_v1.yaml + 2 retemplates, ops/{run_ingestion,
+run_backfill,audit_dex_mapping_templates,validation/dune_parity,
+backfill_uniswap_v4_pools}.py, ops/CRON.md, observable/src/data/spikes.json.py,
+api/, frontend/, docs/MVP_ROADMAP.md.
+
+Open threads:
+  - Phase D VPS deploy (.tickets/na-7pax.md).
+  - na-lh5q Arb+Op UniV4 pool backfill (~90 min unattended).
+  - Phase B: 15 single-protocol decoders + Curve + Balancer + 8 bridges + 30d backfill.
+
 ## 2026-05-08 — BD decoder foundation: framework + registry + Dune bootstrap + ABI fetcher
 
 Worked on: Re-scoped BD chains (Polygon in; HyperEVM/MegaETH/Monad out), audited my
