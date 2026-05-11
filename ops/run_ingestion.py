@@ -82,10 +82,37 @@ def main(argv: list[str] | None = None) -> int:
         assets.append(dune_parity)
         logger.info("including dune_parity in this run")
 
+    # Resource defaults are baked at class definition time (dev's
+    # localhost:8124 / 5434), so prod must override via env. We read the
+    # same vars api/ch.py uses so .env is the single source of truth.
+    ch_kwargs = {
+        k: v
+        for k, v in {
+            "host": os.environ.get("CLICKHOUSE_HOST"),
+            "port": int(os.environ["CLICKHOUSE_PORT"]) if os.environ.get("CLICKHOUSE_PORT") else None,
+            "username": os.environ.get("CLICKHOUSE_USER"),
+            "password": os.environ.get("CLICKHOUSE_PASSWORD"),
+            "database": os.environ.get("CLICKHOUSE_DB"),
+        }.items()
+        if v is not None
+    }
+    pg_dsn = os.environ.get("PROTOCOL_CONTRACTS_DSN")
+    pg_kwargs: dict = {}
+    if pg_dsn:
+        from urllib.parse import urlparse
+        u = urlparse(pg_dsn)
+        pg_kwargs = {
+            "host": u.hostname or "localhost",
+            "port": u.port or 5432,
+            "username": u.username or "nexus",
+            "password": u.password or "nexus",
+            "database": (u.path or "/nexus_ops").lstrip("/"),
+        }
+
     resources = {
-        "clickhouse": ClickHouseResource(),
+        "clickhouse": ClickHouseResource(**ch_kwargs),
         "evm": EVMIngestionResource(lookback_minutes=args.lookback),
-        "postgres": PostgresResource(),
+        "postgres": PostgresResource(**pg_kwargs),
     }
 
     t0 = time.time()

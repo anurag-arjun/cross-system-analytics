@@ -71,11 +71,11 @@ def main(argv: list[str] | None = None) -> int:
             "postgresql://nexus:nexus@localhost:5434/nexus_ops",
         ),
     )
-    parser.add_argument("--ch-host", default="localhost")
-    parser.add_argument("--ch-port", type=int, default=8124)
-    parser.add_argument("--ch-user", default="default")
-    parser.add_argument("--ch-password", default="nexus")
-    parser.add_argument("--ch-database", default="nexus")
+    parser.add_argument("--ch-host", default=os.getenv("CLICKHOUSE_HOST", "localhost"))
+    parser.add_argument("--ch-port", type=int, default=int(os.getenv("CLICKHOUSE_PORT", "8124")))
+    parser.add_argument("--ch-user", default=os.getenv("CLICKHOUSE_USER", "default"))
+    parser.add_argument("--ch-password", default=os.getenv("CLICKHOUSE_PASSWORD", "nexus"))
+    parser.add_argument("--ch-database", default=os.getenv("CLICKHOUSE_DB", "nexus"))
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
 
