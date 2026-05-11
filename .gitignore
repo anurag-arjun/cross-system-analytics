@@ -45,6 +45,7 @@ Thumbs.db
 secrets/
 *.key
 *.pem
+ops/nginx/htpasswd
 
 # Tickets
 .tickets/

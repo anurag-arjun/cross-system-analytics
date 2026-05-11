@@ -87,6 +87,7 @@ services:
       - "127.0.0.1:18080:80"
     volumes:
       - ./ops/nginx/nexus.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./ops/nginx/htpasswd:/etc/nginx/htpasswd:ro
       - ./frontend/dist:/var/www/html:ro
 
 volumes:
