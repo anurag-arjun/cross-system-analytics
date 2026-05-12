@@ -86,6 +86,28 @@ export interface TopProtocolRow {
 export const fetchTopProtocols = (days: number, chain: Chain) =>
   get<{ rows: TopProtocolRow[] }>('/api/bridge-flow/top-protocols-after-bridge', { days, chain });
 
+// Cross-chain (powered by the materialised bridge_links JOIN).
+export interface CrossChainRow {
+  src_chain: string;
+  dst_chain: string;
+  bridges: number;
+  wallets: number;
+  total_usd: number;
+  avg_latency_seconds: number;
+  p50_latency_seconds: number;
+}
+export const fetchCrossChainMatrix = (days: number, chain: Chain) =>
+  get<{ rows: CrossChainRow[] }>('/api/bridge-flow/cross-chain-matrix', { days, chain });
+
+export interface BridgeCompletion {
+  bridge_outs: number;
+  matched: number;
+  unmatched: number;
+  link_rate_pct: number;
+}
+export const fetchBridgeCompletion = (days: number, chain: Chain) =>
+  get<BridgeCompletion>('/api/bridge-flow/completion', { days, chain });
+
 // ----------------- Spikes -----------------
 
 export interface SpikeSummary {

@@ -30,7 +30,9 @@ import { Banner, Card, ErrorBox, Kpi, Loading, Section, Table } from '@/componen
 import {
   fetchActivity24h,
   fetchBridgeBreakdown,
+  fetchBridgeCompletion,
   fetchBridgeSummary,
+  fetchCrossChainMatrix,
   fetchFirstAction,
   fetchSecondHop,
   fetchSwapVsNonSwap,
@@ -70,6 +72,14 @@ export function BridgeFlowPage() {
   const activity = useQuery({
     queryKey: ['activity-24h', days, chain],
     queryFn: () => fetchActivity24h(days, chain),
+  });
+  const crossChain = useQuery({
+    queryKey: ['cross-chain-matrix', days, chain],
+    queryFn: () => fetchCrossChainMatrix(days, chain),
+  });
+  const completion = useQuery({
+    queryKey: ['bridge-completion', days, chain],
+    queryFn: () => fetchBridgeCompletion(days, chain),
   });
   const topProtocols = useQuery({
     queryKey: ['top-protocols', days, chain],
@@ -114,6 +124,58 @@ export function BridgeFlowPage() {
           hint="lend / stake / lp / claim / perp / pool_create"
         />
       </div>
+
+      <Section
+        title="Cross-chain flow"
+        subtitle="bridge_out matched to bridge_in via link_key. Latency in seconds."
+      >
+        <div className="grid lg:grid-cols-3 gap-4">
+          <Card className="lg:col-span-1">
+            {completion.isLoading && <Loading />}
+            {completion.isError && <ErrorBox error={completion.error} />}
+            {completion.data && (
+              <div className="space-y-3">
+                <Kpi
+                  label="Link rate"
+                  value={`${completion.data.link_rate_pct.toFixed(1)}%`}
+                  hint={`${full(completion.data.matched)} of ${full(completion.data.bridge_outs)} bridge_outs matched`}
+                />
+                <Kpi
+                  label="Unmatched"
+                  value={full(completion.data.unmatched)}
+                  hint="bridge_out without a bridge_in within 7d"
+                />
+              </div>
+            )}
+          </Card>
+          <Card className="lg:col-span-2">
+            {crossChain.isLoading && <Loading />}
+            {crossChain.isError && <ErrorBox error={crossChain.error} />}
+            {crossChain.data && (
+              <Table
+                data={crossChain.data.rows}
+                columns={[
+                  { key: 'route', label: 'src → dst', render: (r) => `${r.src_chain} → ${r.dst_chain}` },
+                  { key: 'bridges', label: 'Bridges', align: 'right', render: (r) => full(r.bridges) },
+                  { key: 'wallets', label: 'Wallets', align: 'right', render: (r) => full(r.wallets) },
+                  {
+                    key: 'avg_latency_seconds',
+                    label: 'Avg latency',
+                    align: 'right',
+                    render: (r) => durationFromSeconds(r.avg_latency_seconds),
+                  },
+                  {
+                    key: 'p50_latency_seconds',
+                    label: 'p50 latency',
+                    align: 'right',
+                    render: (r) => durationFromSeconds(r.p50_latency_seconds),
+                  },
+                ]}
+              />
+            )}
+          </Card>
+        </div>
+      </Section>
 
       <Section title="Post-bridge action split" subtitle="What did users do within 24h of bridging in?">
         <div className="grid lg:grid-cols-2 gap-4">
