@@ -65,15 +65,36 @@ State at end of session:
     the backfill — both are idempotent so harmless.
 
 Open threads:
-  - Hourly cron at --lookback 60 will self-overlap (~2h wall). Tune
-    cadence after observing first few prod ticks.
-  - bridge_links step is suspiciously slow (~5 min for 17 matches);
-    investigate the per-pending-bridge CH lookup.
+  - **Backfill paused** mid-run. min(canonical_events.timestamp) is
+    2026-04-11 13:05 (got most of the 30d window), max is
+    2026-05-11 15:53 (cron-pulled recent data). Resume with
+    `tmux new -d -s backfill ...` once cron stabilises (idempotent,
+    safe to re-run any window).
+  - **Bridge_links not running in cron anymore** (`--skip-bridge-links`
+    in the tuned cron). Needs separate cadence — either a 4-hourly
+    cron that runs `--force` over a wider lookback, or a Dagster
+    schedule. The slow per-pending-bridge CH lookup makes this
+    expensive enough that we don't want it inline with hourly.
+  - **Profile bridge_links** — ~5 min for 17 matches is ~17s per
+    pending bridge, suggesting a non-batched query. Worth a
+    `tldr cfg` + a CH `system.query_log` look.
   - Move load_dotenv() before argparse defaults in run_ingestion,
     run_backfill, import_dune_contracts so prod doesn't depend on
     `set -a; source .env; set +a` shell hygiene.
   - Phase B work (15 single-protocol decoders + Curve + Balancer + 8
     bridges) still parallelisable post-launch. Ticket epic na-09db.
+
+Late-session tuning (post-launch):
+  - 4 cron ticks observed alive concurrently after Phase D landed —
+    hourly @ --lookback 60 takes ~2h wall (raw_logs phase alone =
+    36m for ~6M raw logs across 5 chains).
+  - Killed all stale ingestion procs + paused backfill (was
+    competing with cron for HyperSync — connection-reset retry
+    storms in backfill log).
+  - New crontab line:
+    `0 * * * * flock -n /tmp/nexus-ingest.lock bash -c 'cd ~/nexus-analytics && PYTHONPATH=. .venv/bin/python ops/run_ingestion.py --lookback 90 --skip-bridge-links' >> ~/nexus-analytics/logs/ingest.log 2>&1`
+  - Next tick: 18:00 UTC. Observe 2-3 ticks before deciding whether
+    to widen cadence to every 2h.
 
 ## 2026-05-11 — BD MVP: pipeline, API, frontend, parity dig
 
