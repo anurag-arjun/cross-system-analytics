@@ -65,20 +65,23 @@ def decoded_events(
     context,
     clickhouse: ClickHouseResource,
     evm: EVMIngestionResource,
-    postgres: PostgresResource,
 ) -> dict:
-    """Decode raw logs into canonical_events."""
+    """Decode raw logs into canonical_events.
+
+    Writes ALL canonical_event types (swap, bridge_out, bridge_in, ...) in
+    a single pass via filtered HyperSync ingest. After insert, runs the
+    server-side aggregator dedup (CH ALTER UPDATE) so a swap that routes
+    through CoWSwap / 0x / 1inch gets reclassified as 'swap_internal' —
+    only the aggregator-level swap is the user-facing one.
+    """
     end = datetime.now(timezone.utc)
     start = end - timedelta(minutes=evm.lookback_minutes)
 
     adapter = evm.get_adapter(CHAINS)
     sink = clickhouse.get_event_sink(batch_size=1000)
-    bridge_engine = evm.get_bridge_engine()
 
     total_decoded = 0
-    bridge_outs = []
-
-    pending_store = postgres.get_pending_bridge_store()
+    bridge_outs = 0
 
     try:
         for chain_name, chain_adapter in adapter.adapters.items():
@@ -92,30 +95,27 @@ def decoded_events(
             if events:
                 sink.write(events)
                 total_decoded += len(events)
+                bridge_outs += sum(1 for ev in events if ev.event_type == "bridge_out")
                 context.log.info(f"Decoded {len(events)} events from {chain_name}")
 
-            for ev in events:
-                if ev.event_type == "bridge_out":
-                    ev_dict = {
-                        "event_type": ev.event_type,
-                        "link_key": ev.link_key,
-                        "link_key_type": ev.link_key_type,
-                        "chain": ev.chain,
-                        "timestamp": ev.timestamp,
-                        "tx_hash": ev.tx_hash,
-                        "entity_id": ev.entity_id,
-                        "event_id": ev.event_id,
-                        "token_out": ev.token_out,
-                        "amount_out": ev.amount_out,
-                    }
-                    bridge_outs.append(ev_dict)
-                    pending_store.add_pending(ev_dict)
+        sink.flush()
+        reclassified = sink.dedup_aggregators()
+        if reclassified:
+            context.log.info(
+                f"aggregator dedup: reclassified {reclassified} swap → swap_internal"
+            )
     finally:
         adapter.close()
         sink.close()
 
-    context.add_output_metadata({"bridge_outs": len(bridge_outs)})
-    return {"decoded_events": total_decoded, "bridge_outs": bridge_outs}
+    context.add_output_metadata(
+        {"bridge_outs": bridge_outs, "aggregator_reclassified": reclassified}
+    )
+    return {
+        "decoded_events": total_decoded,
+        "bridge_outs": bridge_outs,
+        "aggregator_reclassified": reclassified,
+    }
 
 
 @asset
