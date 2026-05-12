@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -84,14 +85,22 @@ def decoded_events(
     bridge_outs = 0
 
     try:
-        for chain_name, chain_adapter in adapter.adapters.items():
-            # `ingest()` pushes the topic0 filter to HyperSync's edge so we
-            # only receive logs that have a registered decoder, then decodes
-            # them inline. Replaces the old ingest_raw + decode_logs pair,
-            # which re-fetched the whole window unfiltered (~70% of logs had
-            # no decoder anyway).
-            events = list(chain_adapter.ingest(start, end))
+        # Run all chains in parallel via asyncio.gather + thread pool. Each
+        # chain_adapter.ingest() is mostly HyperSync I/O so threads release
+        # the GIL while waiting. Replaces the sequential per-chain loop where
+        # polygon (~57 min) blocked the smaller chains.
+        async def _decode_all_parallel():
+            chain_names = list(adapter.adapters.keys())
+            tasks = [
+                asyncio.to_thread(lambda a=ca: list(a.ingest(start, end)))
+                for ca in adapter.adapters.values()
+            ]
+            results = await asyncio.gather(*tasks)
+            return list(zip(chain_names, results))
 
+        per_chain = asyncio.run(_decode_all_parallel())
+
+        for chain_name, events in per_chain:
             if events:
                 sink.write(events)
                 total_decoded += len(events)
