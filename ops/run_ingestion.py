@@ -64,6 +64,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--lookback", type=int, default=60, help="Minutes of history to ingest.")
     parser.add_argument("--skip-bridge-links", action="store_true")
     parser.add_argument("--skip-prices", action="store_true")
+    parser.add_argument(
+        "--skip-raw-logs",
+        action="store_true",
+        help="Skip the raw_logs asset (writes every HyperSync log to canonical_logs). "
+        "Filtered ingest in decoded_events covers the useful subset; raw_logs is only "
+        "needed to support re-decoding history when a new decoder is added.",
+    )
     parser.add_argument("--force-parity", action="store_true", help="Run Dune parity regardless of weekday/hour.")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
@@ -73,7 +80,9 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
-    assets = [raw_logs, decoded_events]
+    assets = [decoded_events]
+    if not args.skip_raw_logs:
+        assets.insert(0, raw_logs)
     if not args.skip_bridge_links:
         assets.append(bridge_links)
     if not args.skip_prices:

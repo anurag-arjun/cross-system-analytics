@@ -60,7 +60,7 @@ def raw_logs(
     return {"raw_logs_ingested": total}
 
 
-@asset(deps=[raw_logs])
+@asset
 def decoded_events(
     context,
     clickhouse: ClickHouseResource,
@@ -82,8 +82,12 @@ def decoded_events(
 
     try:
         for chain_name, chain_adapter in adapter.adapters.items():
-            raw_logs = list(chain_adapter.ingest_raw(start, end))
-            events = list(chain_adapter.decode_logs(raw_logs))
+            # `ingest()` pushes the topic0 filter to HyperSync's edge so we
+            # only receive logs that have a registered decoder, then decodes
+            # them inline. Replaces the old ingest_raw + decode_logs pair,
+            # which re-fetched the whole window unfiltered (~70% of logs had
+            # no decoder anyway).
+            events = list(chain_adapter.ingest(start, end))
 
             if events:
                 sink.write(events)
