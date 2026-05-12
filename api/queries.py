@@ -199,7 +199,7 @@ def second_hop_after_swap(days: int, chain: str | None) -> str:
             next_events AS (
                 SELECT entity_id, chain, event_type, protocol, timestamp
                 FROM canonical_events
-                WHERE event_type != 'bridge_in'
+                WHERE event_type IN ({_MEANINGFUL_LIST})
                   AND timestamp > now() - INTERVAL {days + 2} DAY
                   {_chain_clause(chain)}
             ),
