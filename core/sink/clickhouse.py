@@ -12,6 +12,19 @@ from clickhouse_connect.driver.client import Client
 
 from core.adapters.base import CanonicalEvent
 
+# Throttle ingest's CH usage so dashboard queries stay responsive even
+# during a heavy cron tick. Default behaviour: CH uses all cores
+# (`max_threads` ≈ host cores) for INSERTs + merges, which leaves no
+# room for serving — observed 681% CH CPU during parallel decoded_events.
+# These settings cap each ingest connection at 4 query threads, 2 insert
+# threads, and lower priority (CH yields to higher-priority — i.e. default
+# priority=0 — read queries from the api).
+_INGEST_SETTINGS: dict[str, Any] = {
+    "max_threads": 4,
+    "max_insert_threads": 2,
+    "priority": 10,
+}
+
 
 class EventSink(Protocol):
     def write(self, events: list[CanonicalEvent]) -> int: ...
@@ -54,6 +67,7 @@ class ClickHouseSink(EventSink):
                 username=self.config.username,
                 password=self.config.password,
                 database=self.config.database,
+                settings=_INGEST_SETTINGS,
             )
         return self._client
 
@@ -179,6 +193,7 @@ class RawLogSink:
                 username=self.config.username,
                 password=self.config.password,
                 database=self.config.database,
+                settings=_INGEST_SETTINGS,
             )
         return self._client
 
@@ -284,6 +299,7 @@ class BridgeLinkSink:
                 username=self.config.username,
                 password=self.config.password,
                 database=self.config.database,
+                settings=_INGEST_SETTINGS,
             )
         return self._client
 
