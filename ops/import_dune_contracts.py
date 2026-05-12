@@ -38,6 +38,12 @@ from core.registry.protocol_contracts import (
     PostgresProtocolContractStore,
 )
 
+# Load .env at module-import time so argparse defaults that read os.environ
+# (e.g. PROTOCOL_CONTRACTS_DSN below) actually see the .env values. The
+# previous placement was inside main() AFTER add_argument, which silently
+# left those defaults at None and forced callers to pass --postgres.
+load_dotenv()
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -66,8 +72,6 @@ def main() -> int:
     )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
-
-    load_dotenv()
 
     api_key = os.environ.get("DUNE_API_KEY")
     if not api_key:
