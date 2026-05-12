@@ -118,63 +118,74 @@ def decoded_events(
     return {"decoded_events": total_decoded, "bridge_outs": bridge_outs}
 
 
-@asset(deps=[decoded_events])
+@asset
 def bridge_links(
     context,
     clickhouse: ClickHouseResource,
-    evm: EVMIngestionResource,
-    postgres: PostgresResource,
-    decoded_events: dict,
 ) -> dict:
-    """Match bridge_out events with bridge_in events across chains."""
-    pending_store = postgres.get_pending_bridge_store()
+    """Materialise bridge_out → bridge_in matches via a single ClickHouse JOIN.
 
-    end = datetime.now(timezone.utc)
-    start = end - timedelta(minutes=evm.lookback_minutes * 2)
+    The previous implementation re-fetched HyperSync logs, decoded them in
+    Python, and made a per-bridge_in Postgres roundtrip against
+    pending_bridge_outs (~17s per match for 17 matches). Both bridge_outs
+    and bridge_ins already land in canonical_events, so the link is just
+    a JOIN on link_key with a 7-day cutoff. Anti-join against bridge_links
+    skips already-linked source events for idempotency.
+    """
+    client = clickhouse.get_client()
 
-    adapter = evm.get_adapter(CHAINS)
-    bridge_engine = evm.get_bridge_engine(store=pending_store)
-    sink = clickhouse.get_bridge_link_sink(batch_size=100)
+    # Match window: a bridge_out from the last 30 days can still get a
+    # bridge_in within 7 days of the out. The 7-day inner cutoff covers
+    # even the slowest canonical bridges (Optimism's 7-day challenge).
+    sql = """
+    INSERT INTO nexus.bridge_links (
+      link_key, link_key_type,
+      src_chain, src_block_time, src_tx_hash, src_entity_id, src_event_id,
+      dst_chain, dst_block_time, dst_tx_hash, dst_entity_id, dst_event_id,
+      token, amount, amount_usd,
+      link_confidence
+    )
+    SELECT
+      bo.link_key,
+      coalesce(bo.link_key_type, bi.link_key_type) AS link_key_type,
+      bo.chain        AS src_chain,
+      bo.timestamp    AS src_block_time,
+      bo.tx_hash      AS src_tx_hash,
+      bo.entity_id    AS src_entity_id,
+      bo.event_id     AS src_event_id,
+      bi.chain        AS dst_chain,
+      bi.timestamp    AS dst_block_time,
+      bi.tx_hash      AS dst_tx_hash,
+      bi.entity_id    AS dst_entity_id,
+      bi.event_id     AS dst_event_id,
+      coalesce(bo.token_out, bi.token_in)         AS token,
+      coalesce(bo.amount_out, bi.amount_in)       AS amount,
+      coalesce(bo.amount_out_usd, bi.amount_in_usd) AS amount_usd,
+      1.0 AS link_confidence
+    FROM nexus.canonical_events AS bo
+    INNER JOIN nexus.canonical_events AS bi
+        ON bo.link_key = bi.link_key
+    WHERE bo.event_type = 'bridge_out'
+      AND bi.event_type = 'bridge_in'
+      AND bo.link_key IS NOT NULL
+      AND bo.timestamp >= now() - INTERVAL 30 DAY
+      AND bi.timestamp >= bo.timestamp
+      AND bi.timestamp <= bo.timestamp + INTERVAL 7 DAY
+      AND bo.event_id NOT IN (
+        SELECT src_event_id FROM nexus.bridge_links
+        WHERE src_block_time >= now() - INTERVAL 30 DAY
+      )
+    """
 
-    matched = 0
-    try:
-        # Re-ingest and decode recent logs to find bridge_in events.
-        for chain_name, chain_adapter in adapter.adapters.items():
-            raw_logs = list(chain_adapter.ingest_raw(start, end))
-            events = list(chain_adapter.decode_logs(raw_logs))
+    before_q = client.query("SELECT count() FROM nexus.bridge_links")
+    before = before_q.result_rows[0][0]
+    client.command(sql)
+    after_q = client.query("SELECT count() FROM nexus.bridge_links")
+    after = after_q.result_rows[0][0]
 
-            for ev in events:
-                if ev.event_type == "bridge_in":
-                    link = bridge_engine.add_bridge_in(
-                        {
-                            "event_type": ev.event_type,
-                            "link_key": ev.link_key,
-                            "link_key_type": ev.link_key_type,
-                            "chain": ev.chain,
-                            "timestamp": ev.timestamp,
-                            "tx_hash": ev.tx_hash,
-                            "entity_id": ev.entity_id,
-                            "event_id": ev.event_id,
-                            "amount": ev.amount_in or ev.amount_out,
-                            "token": ev.token_in or ev.token_out,
-                        }
-                    )
-                    if link:
-                        sink.write([link])
-                        matched += 1
-
-        sink.close()
-    finally:
-        adapter.close()
-
-    # Also clean up expired pending rows.
-    deleted = pending_store.delete_expired(end - timedelta(days=30))
-    if deleted:
-        context.log.info(f"Deleted {deleted} expired pending bridge rows")
-
-    stats = bridge_engine.stats()
-    context.log.info(f"Matched {matched} bridge links, {stats['pending']} pending")
-    return {"matched": matched, "pending": stats["pending"], "expired_deleted": deleted}
+    matched = after - before
+    context.log.info(f"bridge_links: matched {matched} new links (total now {after})")
+    return {"matched": matched, "total": after}
 
 
 @asset(
