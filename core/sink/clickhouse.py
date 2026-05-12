@@ -344,9 +344,29 @@ def _chunk_list(lst: list, size: int) -> list[list]:
 
 def _aggregator_dedup(client, table: str) -> int:
     """Reclassify DEX Swap events as swap_internal when an aggregator
-    event exists in the same transaction."""
+    event exists in the same transaction.
+
+    Returns the count of rows that match the reclassification predicate
+    BEFORE submitting the mutation. (CH `ALTER … UPDATE` is async, so
+    `result.written_rows` isn't populated synchronously — this gives an
+    accurate count for the log line at the cost of one extra SELECT.)
+    """
+    matched_q = client.query(
+        f"SELECT count() FROM {table}"
+        f" WHERE event_type = 'swap'"
+        f" AND aggregator = ''"
+        f" AND tx_hash IN ("
+        f"  SELECT tx_hash FROM {table}"
+        f"  WHERE aggregator != '' AND event_type = 'swap'"
+        f" )"
+    )
+    matched = matched_q.result_rows[0][0] if matched_q.result_rows else 0
+
+    if matched == 0:
+        return 0
+
     try:
-        result = client.command(
+        client.command(
             f"ALTER TABLE {table}"
             f" UPDATE event_type = 'swap_internal'"
             f" WHERE tx_hash IN ("
@@ -356,7 +376,7 @@ def _aggregator_dedup(client, table: str) -> int:
             f" AND event_type = 'swap'"
             f" AND aggregator = ''"
         )
-        return result.written_rows if hasattr(result, 'written_rows') else 0
+        return matched
     except Exception:
         pass
 
