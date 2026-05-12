@@ -117,6 +117,25 @@ def top_protocols_after_bridge(
     return {"rows": _run(queries.top_protocols_after_bridge_24h(days, None if chain == "all" else chain))}
 
 
+@app.get("/api/bridge-flow/cross-chain-matrix")
+def cross_chain_matrix(
+    days: int = Query(7, ge=1, le=30),
+    chain: Chain = "all",
+) -> dict:
+    """Aggregated (src_chain, dst_chain) flow matrix from bridge_links."""
+    return {"rows": _run(queries.cross_chain_matrix(days, None if chain == "all" else chain))}
+
+
+@app.get("/api/bridge-flow/completion")
+def bridge_completion(
+    days: int = Query(7, ge=1, le=30),
+    chain: Chain = "all",
+) -> dict:
+    """% of bridge_outs that got matched to a bridge_in within 7d."""
+    rows = _run(queries.bridge_completion(days, None if chain == "all" else chain))
+    return rows[0] if rows else {}
+
+
 # ---------------------------------------------------------------------------
 # Spike detection
 # ---------------------------------------------------------------------------

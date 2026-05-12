@@ -472,3 +472,66 @@ def active_protocols(days: int, chain: str | None, limit: int) -> str:
         ORDER BY venues DESC
         LIMIT {limit}
     """
+
+
+# ---------------------------------------------------------------------------
+# Cross-chain bridge flow (uses materialised bridge_links — bridge_out
+# joined to bridge_in via link_key, populated by the bridge_links asset).
+# ---------------------------------------------------------------------------
+
+
+def cross_chain_matrix(days: int, chain: str | None) -> str:
+    """Aggregated (src_chain, dst_chain) flow matrix for the window.
+
+    `chain` filter, when set, restricts to either side of the bridge —
+    useful for "show me everything that flowed in or out of base".
+    """
+    where_chain = ""
+    if chain and chain != "all":
+        if chain not in CHAINS:
+            raise ValueError(f"unknown chain: {chain!r}")
+        where_chain = f"AND (src_chain = '{chain}' OR dst_chain = '{chain}')"
+    return f"""
+        SELECT
+            src_chain,
+            dst_chain,
+            count() AS bridges,
+            uniqExact(src_entity_id) AS wallets,
+            sum(coalesce(amount_usd, 0)) AS total_usd,
+            avg(date_diff('second', src_block_time, dst_block_time)) AS avg_latency_seconds,
+            quantileExact(0.5)(date_diff('second', src_block_time, dst_block_time)) AS p50_latency_seconds
+        FROM bridge_links
+        WHERE src_block_time > now() - INTERVAL {days} DAY
+          {where_chain}
+        GROUP BY src_chain, dst_chain
+        ORDER BY bridges DESC
+        LIMIT 100
+    """
+
+
+def bridge_completion(days: int, chain: str | None) -> str:
+    """Of the bridge_outs in the window, how many got matched (ie a
+    bridge_in was found within 7 days)? `link_rate` is the headline.
+    """
+    cc = _chain_clause(chain)  # matches event.chain (the src side)
+    return f"""
+        WITH outs AS (
+            SELECT
+                event_id, chain, timestamp, link_key
+            FROM canonical_events
+            WHERE event_type = 'bridge_out'
+              AND link_key IS NOT NULL
+              AND timestamp > now() - INTERVAL {days} DAY
+              {cc}
+        )
+        SELECT
+            count() AS bridge_outs,
+            countIf(bl.src_event_id != '') AS matched,
+            count() - countIf(bl.src_event_id != '') AS unmatched,
+            round(100.0 * countIf(bl.src_event_id != '') / count(), 2) AS link_rate_pct
+        FROM outs o
+        LEFT JOIN (
+            SELECT src_event_id FROM bridge_links
+            WHERE src_block_time > now() - INTERVAL {days} DAY
+        ) bl ON bl.src_event_id = o.event_id
+    """
