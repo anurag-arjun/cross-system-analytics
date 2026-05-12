@@ -96,6 +96,66 @@ Late-session tuning (post-launch):
   - Next tick: 18:00 UTC. Observe 2-3 ticks before deciding whether
     to widen cadence to every 2h.
 
+## 2026-05-12 — Perf audit: decoded_events 3h→1h35, bridge_links 5m→10s
+
+Worked on: Investigated why hourly cron at --lookback 60 was taking
+3-4h. Found two architectural under-utilisations of CH:
+
+  1. **decoded_events re-fetched HyperSync** — the asset called
+     `chain_adapter.ingest_raw(start, end)` (full unfiltered window
+     just pulled by raw_logs), then decoded in Python and dropped
+     ~70% of logs. The codebase already had
+     `chain_adapter.ingest(start, end)` which pushes the topic0
+     filter to HyperSync's edge. Asset wasn't using it.
+
+  2. **bridge_links matching was a Python loop with per-bridge_in
+     Postgres roundtrips** (4-5 min for ~17 matches). Both bridge_out
+     and bridge_in were already in canonical_events — the link is a
+     CH JOIN on link_key.
+
+Decisions:
+  - **Filtered ingest via `chain_adapter.ingest()`**: single fetch
+    per chain, only topic0-known logs, decoded inline. Commit
+    `055dfb8`.
+  - **`bridge_links` via CH JOIN**: single `INSERT INTO bridge_links
+    SELECT … FROM canonical_events bo INNER JOIN canonical_events bi
+    ON bo.link_key = bi.link_key` with anti-join for idempotency.
+    Commit `af39f7c`. First run materialised 970 links in 21s (was
+    17 after many days of Python-loop matching).
+  - **Aggregator dedup wired** — `sink.dedup_aggregators()` existed
+    but was never called. Now invoked at end of decoded_events.
+    2,448 swap_internal rows now in canonical_events. **Cosmetic
+    bug**: returns 0 count because CH ALTER UPDATE is async; the
+    actual mutation works. Commit `eb68071`.
+  - **Drop `--skip-bridge-links` from cron, add `--skip-raw-logs`
+    and `--skip-prices`**. bridge_links via JOIN is so cheap (~10s)
+    it goes back in; raw_logs is redundant now that decoded_events
+    fetches its own filtered logs; token_metadata is empty so
+    token_prices is 47s of no-op overhead.
+  - **Cross-chain funnel API + UI**: two new endpoints
+    (cross-chain-matrix, completion) + a section on the /bridge
+    page surfacing the materialised links. Real link rate: 44.7%.
+    Commits `4d56bec`, `cc44b1c`.
+  - **Fix load_dotenv ordering** in `import_dune_contracts.py`
+    (others were already correct from commit 921a54e). Commit
+    `a7e0d45`.
+
+First measurement (08:00 UTC tick): **1h35m total** (was 3-4h).
+decoded_events alone 95 min (was 3h18m on 04:00 UTC tick).
+bridge_links 9.6s (was 4-5 min). Polygon dominates (~57 min of
+decoded_events) — chain-parallel ingest is the next perf lever.
+
+Open threads:
+  - Polygon dominates decoded_events. Run chains in parallel
+    (asyncio or threads) for ~30 min savings.
+  - `token_metadata` is empty → USD enrichment never runs → all
+    `amount_usd` are 0. Wire `TokenMetadataLoader` into a cron job.
+  - Resume the 30-day backfill (paused yesterday). Now safe to
+    run alongside cron since cron leaves more headroom.
+  - Dedup_aggregators() returns 0 even when work happens.
+    Cosmetic fix: poll system.mutations or do a count-before /
+    count-after.
+
 ## 2026-05-11 — BD MVP: pipeline, API, frontend, parity dig
 
 Worked on: Closed na-rk8b (daily spikes), na-hmeu (parity validator +
