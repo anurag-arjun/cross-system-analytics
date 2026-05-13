@@ -1,0 +1,37 @@
+protocol: compound_v3
+chains: [ethereum, base, arbitrum, optimism, polygon]
+# Compound V3 (Comet) lending. One Comet contract per base asset per
+# chain (cUSDCv3, cWETHv3, cUSDTv3, ...). Each Comet emits Supply and
+# Withdraw against its own base asset. token_in / token_out are
+# intentionally not set — the asset is implicit in the Comet contract
+# address (venue). BD's "first action after bridge" only needs
+# (protocol, event_type, venue) to surface "user used Compound V3".
+# SupplyCollateral / WithdrawCollateral / AbsorbCollateral are out of
+# scope for the BD MVP (collateral tracking is finer-grained than the
+# dashboard surfaces today).
+events:
+  - name: Supply
+    inputs:
+      - {name: from,   type: address, indexed: true}
+      - {name: dst,    type: address, indexed: true}
+      - {name: amount, type: uint256}
+    canonical:
+      event_type: lend_deposit
+      entity_id:  "{dst}"
+      venue:      "{log.address}"
+      amount_in:  "{amount}"
+      extra:
+        from: "{from}"
+
+  - name: Withdraw
+    inputs:
+      - {name: src,    type: address, indexed: true}
+      - {name: to,     type: address, indexed: true}
+      - {name: amount, type: uint256}
+    canonical:
+      event_type: lend_withdraw
+      entity_id:  "{src}"
+      venue:      "{log.address}"
+      amount_out: "{amount}"
+      extra:
+        to: "{to}"

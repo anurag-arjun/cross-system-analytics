@@ -627,6 +627,136 @@ def test_lido_withdrawal_requested_decode():
     assert ev.extra["request_id"] == str(request_id)
 
 
+COMPOUND_V3_SUPPLY_TOPIC0   = "0xd1cf3d156d5f8f0d50f6c122ed609cec09d35c9b9fb3fff6ea0959134dae424e"
+COMPOUND_V3_WITHDRAW_TOPIC0 = "0x9b1bfa7fa9ee420a16e124f794c35ac9f90472acc99140eb2f6447c714cad8eb"
+COMPOUND_USDC_COMET = "0xc3d688b66703497daa19211eedff47f25384cdc3"
+
+
+def test_compound_v3_supply_decode():
+    decoder = _load_decoder("compound_v3", COMPOUND_V3_SUPPLY_TOPIC0)
+    amount = 1_000_000_000  # 1000 USDC
+    src = "0x" + "11" * 20
+    dst = "0x" + "22" * 20
+    data = encode(["uint256"], [amount]).hex()
+    log = {
+        "address": COMPOUND_USDC_COMET,
+        "topics": [
+            COMPOUND_V3_SUPPLY_TOPIC0,
+            _addr_topic(src),
+            _addr_topic(dst),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x300",
+        "transactionHash": TX,
+        "logIndex": "0x20",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_deposit"
+    assert ev.protocol == "compound_v3"
+    assert ev.entity_id == dst
+    assert ev.venue == COMPOUND_USDC_COMET
+    assert ev.amount_in == amount
+    assert ev.extra["from"] == src
+
+
+def test_compound_v3_withdraw_decode():
+    decoder = _load_decoder("compound_v3", COMPOUND_V3_WITHDRAW_TOPIC0)
+    amount = 500_000_000
+    src = "0x" + "33" * 20
+    to = "0x" + "44" * 20
+    data = encode(["uint256"], [amount]).hex()
+    log = {
+        "address": COMPOUND_USDC_COMET,
+        "topics": [
+            COMPOUND_V3_WITHDRAW_TOPIC0,
+            _addr_topic(src),
+            _addr_topic(to),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x301",
+        "transactionHash": TX,
+        "logIndex": "0x21",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_withdraw"
+    assert ev.entity_id == src
+    assert ev.amount_out == amount
+    assert ev.extra["to"] == to
+
+
+MORPHO_BLUE_SUPPLY_TOPIC0   = "0xedf8870433c83823eb071d3df1caa8d008f12f6440918c20d75a3602cda30fe0"
+MORPHO_BLUE_BORROW_TOPIC0   = "0x570954540bed6b1304a87dfe815a5eda4a648f7097a16240dcd85c9b5fd42a43"
+MORPHO_BLUE_SINGLETON = "0xbbbbbbbbbb9cc5e90e3b3af64bdaf62c37eeffcb"
+
+
+def _bytes32_topic(b: bytes) -> str:
+    assert len(b) == 32
+    return "0x" + b.hex()
+
+
+def test_morpho_blue_supply_decode():
+    decoder = _load_decoder("morpho_blue", MORPHO_BLUE_SUPPLY_TOPIC0)
+    market_id = b"\xab" * 32
+    caller = "0x" + "11" * 20
+    on_behalf = "0x" + "22" * 20
+    assets = 1_000_000_000_000_000_000  # 1 ETH-ish
+    shares = 950_000_000_000_000_000
+    data = encode(["uint256", "uint256"], [assets, shares]).hex()
+    log = {
+        "address": MORPHO_BLUE_SINGLETON,
+        "topics": [
+            MORPHO_BLUE_SUPPLY_TOPIC0,
+            _bytes32_topic(market_id),
+            _addr_topic(caller),
+            _addr_topic(on_behalf),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x400",
+        "transactionHash": TX,
+        "logIndex": "0x30",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_deposit"
+    assert ev.protocol == "morpho_blue"
+    assert ev.entity_id == on_behalf
+    assert ev.amount_in == assets
+    assert ev.extra["market_id"] == "0x" + market_id.hex()
+    assert ev.extra["caller"] == caller
+
+
+def test_morpho_blue_borrow_decode():
+    decoder = _load_decoder("morpho_blue", MORPHO_BLUE_BORROW_TOPIC0)
+    market_id = b"\xcd" * 32
+    caller = "0x" + "33" * 20
+    on_behalf = "0x" + "44" * 20
+    receiver = "0x" + "55" * 20
+    assets = 500_000_000  # 500 USDC
+    shares = 495_000_000
+    data = encode(["address", "uint256", "uint256"], [caller, assets, shares]).hex()
+    log = {
+        "address": MORPHO_BLUE_SINGLETON,
+        "topics": [
+            MORPHO_BLUE_BORROW_TOPIC0,
+            _bytes32_topic(market_id),
+            _addr_topic(on_behalf),
+            _addr_topic(receiver),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x401",
+        "transactionHash": TX,
+        "logIndex": "0x31",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_borrow"
+    assert ev.entity_id == on_behalf
+    assert ev.amount_out == assets
+    assert ev.extra["receiver"] == receiver
+
+
 def test_uniswap_v4_initialize_decoder():
     """UniV4 Initialize: surfaces currency0 + currency1 as token_in/token_out
     so the pool registry can be built from canonical_events."""
