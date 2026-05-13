@@ -420,6 +420,147 @@ def test_uniswap_v4_swap_unresolved_pool_leaves_tokens_none():
         plugins_mod._reset_univ4_pool_resolver()
 
 
+AAVE_V3_SUPPLY_TOPIC0   = "0x2b627736bca15cd5381dcf80b0bf11fd197d01a037c52b927a881a10fb73ba61"
+AAVE_V3_WITHDRAW_TOPIC0 = "0x3115d1449a7b732c986cba18244e897a450f61e1bb8d589cd2e69e6c8924f9f7"
+AAVE_V3_BORROW_TOPIC0   = "0xb3d084820fb1a9decffb176436bd02558d15fac9b0ddfed8c465bc7359d7dce0"
+AAVE_V3_REPAY_TOPIC0    = "0xa534c8dbe71f871f9f3530e97a74601fea17b426cae02e1c5aee42c96c784051"
+
+AAVE_POOL = "0x" + "ae" * 20
+RESERVE   = "0x" + "11" * 20  # underlying asset (e.g. USDC)
+USER      = "0x" + "22" * 20
+ON_BEHALF = "0x" + "33" * 20
+TO        = "0x" + "44" * 20
+REPAYER   = "0x" + "55" * 20
+
+
+def _uint16_topic(n: int) -> str:
+    return "0x" + format(n, "064x")
+
+
+def test_aave_v3_topic0s_match_known_hashes():
+    for topic0 in (
+        AAVE_V3_SUPPLY_TOPIC0,
+        AAVE_V3_WITHDRAW_TOPIC0,
+        AAVE_V3_BORROW_TOPIC0,
+        AAVE_V3_REPAY_TOPIC0,
+    ):
+        assert _load_decoder("aave_v3", topic0).topic0 == topic0
+
+
+def test_aave_v3_supply_decode():
+    decoder = _load_decoder("aave_v3", AAVE_V3_SUPPLY_TOPIC0)
+    amount = 5_000_000_000  # 5000 USDC (6 dec)
+    data = encode(["address", "uint256"], [USER, amount]).hex()
+    log = {
+        "address": AAVE_POOL,
+        "topics": [
+            AAVE_V3_SUPPLY_TOPIC0,
+            _addr_topic(RESERVE),
+            _addr_topic(ON_BEHALF),
+            _uint16_topic(42),  # referralCode
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x100",
+        "transactionHash": TX,
+        "logIndex": "0x3",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_deposit"
+    assert ev.protocol == "aave_v3"
+    assert ev.entity_id == ON_BEHALF
+    assert ev.venue == AAVE_POOL
+    assert ev.token_in == RESERVE
+    assert ev.amount_in == amount
+    assert ev.extra["user"] == USER
+    assert ev.extra["referral_code"] == "42"
+
+
+def test_aave_v3_withdraw_decode():
+    decoder = _load_decoder("aave_v3", AAVE_V3_WITHDRAW_TOPIC0)
+    amount = 2_500_000_000
+    data = encode(["uint256"], [amount]).hex()
+    log = {
+        "address": AAVE_POOL,
+        "topics": [
+            AAVE_V3_WITHDRAW_TOPIC0,
+            _addr_topic(RESERVE),
+            _addr_topic(USER),
+            _addr_topic(TO),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x101",
+        "transactionHash": TX,
+        "logIndex": "0x4",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_withdraw"
+    assert ev.entity_id == USER
+    assert ev.token_out == RESERVE
+    assert ev.amount_out == amount
+    assert ev.extra["to"] == TO
+
+
+def test_aave_v3_borrow_decode():
+    decoder = _load_decoder("aave_v3", AAVE_V3_BORROW_TOPIC0)
+    amount = 1_000_000_000
+    interest_rate_mode = 2  # variable
+    borrow_rate = 12345678
+    data = encode(
+        ["address", "uint256", "uint8", "uint256"],
+        [USER, amount, interest_rate_mode, borrow_rate],
+    ).hex()
+    log = {
+        "address": AAVE_POOL,
+        "topics": [
+            AAVE_V3_BORROW_TOPIC0,
+            _addr_topic(RESERVE),
+            _addr_topic(ON_BEHALF),
+            _uint16_topic(0),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x102",
+        "transactionHash": TX,
+        "logIndex": "0x5",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_borrow"
+    assert ev.entity_id == ON_BEHALF
+    assert ev.token_out == RESERVE
+    assert ev.amount_out == amount
+    assert ev.extra["interest_rate_mode"] == "2"
+    assert ev.extra["borrow_rate"] == str(borrow_rate)
+
+
+def test_aave_v3_repay_decode():
+    decoder = _load_decoder("aave_v3", AAVE_V3_REPAY_TOPIC0)
+    amount = 750_000_000
+    data = encode(["uint256", "bool"], [amount, True]).hex()
+    log = {
+        "address": AAVE_POOL,
+        "topics": [
+            AAVE_V3_REPAY_TOPIC0,
+            _addr_topic(RESERVE),
+            _addr_topic(USER),
+            _addr_topic(REPAYER),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x103",
+        "transactionHash": TX,
+        "logIndex": "0x6",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "lend_repay"
+    assert ev.entity_id == REPAYER
+    assert ev.token_in == RESERVE
+    assert ev.amount_in == amount
+    assert ev.extra["user"] == USER
+    assert ev.extra["use_atokens"] == "True"
+
+
 def test_uniswap_v4_initialize_decoder():
     """UniV4 Initialize: surfaces currency0 + currency1 as token_in/token_out
     so the pool registry can be built from canonical_events."""

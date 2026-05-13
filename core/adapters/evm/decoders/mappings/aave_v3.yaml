@@ -1,0 +1,72 @@
+protocol: aave_v3
+chains: [ethereum, base, arbitrum, optimism, polygon]
+events:
+  - name: Supply
+    inputs:
+      - {name: reserve,      type: address, indexed: true}
+      - {name: user,         type: address}
+      - {name: onBehalfOf,   type: address, indexed: true}
+      - {name: amount,       type: uint256}
+      - {name: referralCode, type: uint16,  indexed: true}
+    canonical:
+      event_type: lend_deposit
+      entity_id:  "{onBehalfOf}"
+      venue:      "{log.address}"
+      token_in:   "{reserve}"
+      amount_in:  "{amount}"
+      extra:
+        user:          "{user}"
+        referral_code: "{referralCode}"
+
+  - name: Withdraw
+    inputs:
+      - {name: reserve, type: address, indexed: true}
+      - {name: user,    type: address, indexed: true}
+      - {name: to,      type: address, indexed: true}
+      - {name: amount,  type: uint256}
+    canonical:
+      event_type: lend_withdraw
+      entity_id:  "{user}"
+      venue:      "{log.address}"
+      token_out:  "{reserve}"
+      amount_out: "{amount}"
+      extra:
+        to: "{to}"
+
+  - name: Borrow
+    inputs:
+      - {name: reserve,          type: address, indexed: true}
+      - {name: user,             type: address}
+      - {name: onBehalfOf,       type: address, indexed: true}
+      - {name: amount,           type: uint256}
+      - {name: interestRateMode, type: uint8}
+      - {name: borrowRate,       type: uint256}
+      - {name: referralCode,     type: uint16,  indexed: true}
+    canonical:
+      event_type: lend_borrow
+      entity_id:  "{onBehalfOf}"
+      venue:      "{log.address}"
+      token_out:  "{reserve}"
+      amount_out: "{amount}"
+      extra:
+        user:                "{user}"
+        interest_rate_mode:  "{interestRateMode}"
+        borrow_rate:         "{borrowRate}"
+        referral_code:       "{referralCode}"
+
+  - name: Repay
+    inputs:
+      - {name: reserve,    type: address, indexed: true}
+      - {name: user,       type: address, indexed: true}
+      - {name: repayer,    type: address, indexed: true}
+      - {name: amount,     type: uint256}
+      - {name: useATokens, type: bool}
+    canonical:
+      event_type: lend_repay
+      entity_id:  "{repayer}"
+      venue:      "{log.address}"
+      token_in:   "{reserve}"
+      amount_in:  "{amount}"
+      extra:
+        user:         "{user}"
+        use_atokens:  "{useATokens}"
