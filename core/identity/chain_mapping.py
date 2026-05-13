@@ -48,11 +48,36 @@ CHAIN_ID_TO_CHAIN: dict[int, str] = {
     204: "opbnb",
 }
 
-# Both directions for convenience
+# Allow string keys too (from decoded event data)
 CHAIN_ID_TO_CHAIN.update({
-    # Allow string keys too (from decoded event data)
     str(k): v for k, v in CHAIN_ID_TO_CHAIN.items()
 })
+
+# Reverse: chain name → LayerZero V2 endpoint ID. Used to compose
+# LayerZero packet link_keys on both source and destination side.
+CHAIN_TO_EID: dict[str, int] = {v: k for k, v in EID_TO_CHAIN.items()}
+
+# Reverse: chain name → canonical EVM chain ID. Used to compose
+# cross-chain bridge link_keys (e.g. Across uses per-origin-chain
+# depositId counters — `1:5000` ≠ `42161:5000`).
+CHAIN_TO_CHAIN_ID: dict[str, int] = {
+    "ethereum": 1,
+    "optimism": 10,
+    "arbitrum": 42161,
+    "base": 8453,
+    "polygon": 137,
+    "avalanche_c": 43114,
+    "bnb": 56,
+    "celo": 42220,
+    "zksync": 324,
+    "gnosis": 100,
+    "scroll": 534352,
+    "blast": 81457,
+    "mode": 34443,
+    "linea": 59144,
+    "zora": 7777777,
+    "opbnb": 204,
+}
 
 
 def normalize_chain(key: str, key_type: str) -> str | None:

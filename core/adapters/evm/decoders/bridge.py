@@ -500,6 +500,7 @@ class LayerZeroPacketDeliveredDecoder(LogDecoder):
         receiver = vals[1]
         src_eid = origin[0]
         sender_bytes32 = origin[1]
+        nonce = origin[2]
         sender = self._address_from_bytes32(sender_bytes32)
 
         return DecodedEvent(
@@ -512,12 +513,15 @@ class LayerZeroPacketDeliveredDecoder(LogDecoder):
             protocol=self.protocol,
             venue=log["address"],
             counterparty=sender,
-            # Store src_eid so the bridge engine can resolve it to a chain name
+            # The bridge engine composes the full composite link_key
+            # in _composite_link_key — needs (src_eid, sender, nonce,
+            # dst_eid) where dst_eid is the chain we're decoding for.
             link_key=str(src_eid),
             link_key_type="layerzero_src_eid",
             extra={
                 "src_eid": src_eid,
                 "sender": sender,
+                "nonce": nonce,
                 "receiver": receiver,
             },
         )
@@ -529,6 +533,84 @@ class LayerZeroPacketDeliveredDecoder(LogDecoder):
         if isinstance(val, bytes):
             return "0x" + val.hex()[-40:]
         return str(val)[-42:]
+
+
+class LayerZeroPacketSentDecoder(LogDecoder):
+    """LayerZero V2 PacketSent — bridge_out for all LZ-based bridges.
+
+    Emitted by the EndpointV2 contract on the source chain when a
+    cross-chain message is sent. The companion of PacketDelivered.
+
+    Event: PacketSent(bytes encodedPayload, bytes options, address sendLibrary)
+
+    encodedPayload is the LZ V1 packet codec (PacketV1Codec.sol):
+        byte    0    : packet version (uint8, =1)
+        bytes 1-8    : nonce (uint64, big-endian)
+        bytes 9-12   : srcEid (uint32, big-endian)
+        bytes 13-44  : sender (bytes32 — left-padded address)
+        bytes 45-48  : dstEid (uint32, big-endian)
+        bytes 49-80  : receiver (bytes32 — chain-native; left-padded address on EVM)
+        bytes 81-112 : guid (bytes32)
+        bytes 113+   : application message (variable)
+
+    link_key composition is deferred to `_composite_link_key`; the
+    decoder seeds src_eid (raw), nonce, sender, dst_eid via extra and
+    sets link_key=str(src_eid) for symmetry with PacketDelivered.
+    """
+
+    @property
+    def topic0(self) -> str:
+        return "0x1ab700d4ced0c005b164c0f789fd09fcbb0156d4c2041b8a3bfbcd961cd1567f"
+
+    @property
+    def event_signature(self) -> str:
+        return "PacketSent(bytes encodedPayload, bytes options, address sendLibrary)"
+
+    @property
+    def protocol(self) -> str:
+        return "layerzero"
+
+    def decode(self, log: dict[str, Any], timestamp: datetime) -> DecodedEvent | None:
+        data = log.get("data", "0x")
+        if data == "0x":
+            return None
+        vals = self._decode_abi(data, ["bytes", "bytes", "address"])
+        encoded_payload = vals[0]
+        if not isinstance(encoded_payload, (bytes, bytearray)) or len(encoded_payload) < 113:
+            return None
+
+        # version = encoded_payload[0]  # always 1 for V2; unused
+        nonce = int.from_bytes(encoded_payload[1:9], "big")
+        src_eid = int.from_bytes(encoded_payload[9:13], "big")
+        sender_b32 = encoded_payload[13:45]
+        dst_eid = int.from_bytes(encoded_payload[45:49], "big")
+        receiver_b32 = encoded_payload[49:81]
+        guid = encoded_payload[81:113]
+
+        sender = "0x" + sender_b32.hex()[-40:]
+        receiver = "0x" + receiver_b32.hex()[-40:]
+
+        return DecodedEvent(
+            event_type="bridge_out",
+            entity_id=sender,
+            timestamp=timestamp,
+            block_number=int(log["blockNumber"], 16),
+            tx_hash=log["transactionHash"],
+            log_index=int(log["logIndex"], 16),
+            protocol=self.protocol,
+            venue=log["address"],
+            counterparty=receiver,
+            link_key=str(src_eid),
+            link_key_type="layerzero_src_eid",
+            extra={
+                "src_eid": src_eid,
+                "dst_eid": dst_eid,
+                "nonce": nonce,
+                "sender": sender,
+                "receiver": receiver,
+                "guid": "0x" + guid.hex(),
+            },
+        )
 
 
 class OPMessagePassedDecoder(LogDecoder):

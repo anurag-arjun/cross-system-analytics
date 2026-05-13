@@ -174,6 +174,7 @@ def bridge_links(
     FROM nexus.canonical_events AS bo
     INNER JOIN nexus.canonical_events AS bi
         ON bo.link_key = bi.link_key
+       AND bo.link_key_type = bi.link_key_type
     WHERE bo.event_type = 'bridge_out'
       AND bi.event_type = 'bridge_in'
       AND bo.link_key IS NOT NULL

@@ -18,6 +18,7 @@ from core.adapters.base import Adapter, CanonicalEvent
 from core.adapters.evm.decoders import DecodedEvent, LogDecoder
 from core.adapters.evm.registry import DecoderRegistry, build_default_registry
 from core.adapters.evm.price_resolver import PriceResolver
+from core.identity.chain_mapping import CHAIN_TO_CHAIN_ID, CHAIN_TO_EID
 
 load_dotenv()
 
@@ -103,6 +104,52 @@ def _raw_log_row(source_system: str, log: dict, ts: datetime | None) -> dict[str
         "topic3": topics[3] if len(topics) > 3 else None,
         "data": log.get("data", "0x"),
     }
+
+
+def _composite_link_key(ev: DecodedEvent, src_chain: str) -> str | None:
+    """Compose a globally-unique bridge link_key from per-chain identifiers.
+
+    Some bridges emit per-source-chain counters that collide across chains
+    (e.g. Across `depositId` — arbitrum #5000 ≠ ethereum #5000). The
+    decoder can't prefix with chain_id because it doesn't know which chain
+    it's running on; we compose here where `src_chain` is known.
+
+    Idempotent: link_keys that already contain ':' are returned unchanged.
+    """
+    raw = ev.link_key
+    if not raw or raw == "" or ":" in raw:
+        return raw
+
+    if ev.link_key_type == "across_deposit_id":
+        if ev.event_type == "bridge_out":
+            chain_id = CHAIN_TO_CHAIN_ID.get(src_chain)
+            return f"{chain_id}:{raw}" if chain_id is not None else raw
+        if ev.event_type == "bridge_in":
+            origin_chain_id = (ev.extra or {}).get("origin_chain_id")
+            return f"{origin_chain_id}:{raw}" if origin_chain_id is not None else raw
+
+    # LayerZero V2: link_key uniqueness needs (nonce, srcEid, sender, dstEid).
+    # The decoder seeds nonce + sender into `extra` and link_key=str(src_eid).
+    # We finish the composite here so we can stamp dstEid (= our chain's EID)
+    # on the bridge_in side without the decoder needing to know which chain
+    # it runs on.
+    if ev.link_key_type == "layerzero_src_eid":
+        extra = ev.extra or {}
+        nonce = extra.get("nonce")
+        sender = extra.get("sender")
+        if nonce is None or sender is None:
+            return raw
+        if ev.event_type == "bridge_in":
+            dst_eid = CHAIN_TO_EID.get(src_chain)
+            if dst_eid is None:
+                return raw
+            return f"{raw}:{sender}:{nonce}:{dst_eid}"
+        if ev.event_type == "bridge_out":
+            dst_eid = extra.get("dst_eid")
+            if dst_eid is None:
+                return raw
+            return f"{raw}:{sender}:{nonce}:{dst_eid}"
+    return raw
 
 
 class EVMAdapter(Adapter):
@@ -525,6 +572,8 @@ class EVMAdapter(Adapter):
                 self.chain, ev.token_out, ev.amount_out
             )
 
+        link_key = _composite_link_key(ev, self.chain)
+
         return CanonicalEvent(
             entity_id=ev.entity_id,
             entity_type="wallet",
@@ -549,7 +598,7 @@ class EVMAdapter(Adapter):
             amount_out_usd=amount_out_usd,
             counterparty=ev.counterparty,
             aggregator=ev.aggregator or None,
-            link_key=ev.link_key,
+            link_key=link_key,
             link_key_type=ev.link_key_type,
             extra=ev.extra,
         )
