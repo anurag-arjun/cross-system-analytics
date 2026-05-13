@@ -62,6 +62,10 @@ def main(argv: list[str] | None = None) -> int:
         help="Chunk size in minutes (default 60).",
     )
     parser.add_argument(
+        "--sink-batch-size", type=int, default=10_000,
+        help="ClickHouse insert batch size for raw logs and decoded events (default 10000).",
+    )
+    parser.add_argument(
         "--chains", nargs="+", default=None,
         help="Subset of chains to backfill (default all).",
     )
@@ -118,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
     sink_cfg_kwargs = dict(
         host=args.ch_host, port=args.ch_port,
         username=args.ch_user, password=args.ch_password,
-        database=args.ch_database, batch_size=1000,
+        database=args.ch_database, batch_size=args.sink_batch_size,
     )
     raw_sink = RawLogSink(SinkConfig(table="canonical_logs", **sink_cfg_kwargs))
     event_sink = ClickHouseSink(SinkConfig(table="canonical_events", **sink_cfg_kwargs))
@@ -134,6 +138,7 @@ def main(argv: list[str] | None = None) -> int:
         (end - start).total_seconds() / 3600.0,
         args.chunk_minutes, [c.chain for c in chains],
     )
+    logger.info("clickhouse sink batch_size=%d", args.sink_batch_size)
 
     cursor = start
     try:
