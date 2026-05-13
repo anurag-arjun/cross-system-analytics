@@ -1,0 +1,36 @@
+protocol: cctp
+chains: [ethereum, base, arbitrum, optimism, polygon]
+# Circle Cross-Chain Transfer Protocol (CCTP V1).
+#
+# Source side: TokenMessenger emits DepositForBurn when a user burns
+# USDC for cross-chain mint. We capture this as bridge_out.
+#
+# Destination side is a follow-up: MessageTransmitter emits MessageReceived
+# (carries the source nonce, link_key) AND TokenMinter emits MintAndWithdraw
+# (carries amount + receiver) in the same tx. Joining them requires a
+# multi-log handler that doesn't fit the generic YAML decoder. See
+# na-k7h7 for the full bridge_in matching work.
+events:
+  - name: DepositForBurn
+    inputs:
+      - {name: nonce,                       type: uint64,  indexed: true}
+      - {name: burnToken,                   type: address, indexed: true}
+      - {name: amount,                      type: uint256}
+      - {name: depositor,                   type: address, indexed: true}
+      - {name: mintRecipient,               type: bytes32}
+      - {name: destinationDomain,           type: uint32}
+      - {name: destinationTokenMessenger,   type: bytes32}
+      - {name: destinationCaller,           type: bytes32}
+    canonical:
+      event_type:    bridge_out
+      entity_id:     "{depositor}"
+      venue:         "{log.address}"
+      token_out:     "{burnToken}"
+      amount_out:    "{amount}"
+      link_key:      "{nonce}"
+      link_key_type: cctp_nonce
+      counterparty:  "{mintRecipient}"
+      extra:
+        destination_domain:           "{destinationDomain}"
+        destination_token_messenger:  "{destinationTokenMessenger}"
+        destination_caller:           "{destinationCaller}"

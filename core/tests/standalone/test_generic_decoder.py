@@ -757,6 +757,53 @@ def test_morpho_blue_borrow_decode():
     assert ev.extra["receiver"] == receiver
 
 
+CCTP_DEPOSIT_FOR_BURN_TOPIC0 = "0x2fa9ca894982930190727e75500a97d8dc500233a5065e0f3126c48fbe0343c0"
+CCTP_TOKEN_MESSENGER = "0xbd3fa81b58ba92a82136038b25adec7066af3155"
+
+
+def _uint64_topic(n: int) -> str:
+    return "0x" + format(n, "064x")
+
+
+def test_cctp_deposit_for_burn_decode():
+    decoder = _load_decoder("cctp", CCTP_DEPOSIT_FOR_BURN_TOPIC0)
+    nonce = 12345678
+    burn_token = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"  # USDC
+    depositor = "0x" + "aa" * 20
+    amount = 5000 * 10**6
+    mint_recipient = b"\xbb" * 32
+    destination_domain = 6  # Base
+    destination_messenger = b"\xcc" * 32
+    destination_caller = b"\x00" * 32
+    data = encode(
+        ["uint256", "bytes32", "uint32", "bytes32", "bytes32"],
+        [amount, mint_recipient, destination_domain, destination_messenger, destination_caller],
+    ).hex()
+    log = {
+        "address": CCTP_TOKEN_MESSENGER,
+        "topics": [
+            CCTP_DEPOSIT_FOR_BURN_TOPIC0,
+            _uint64_topic(nonce),
+            _addr_topic(burn_token),
+            _addr_topic(depositor),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x500",
+        "transactionHash": TX,
+        "logIndex": "0x40",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "bridge_out"
+    assert ev.protocol == "cctp"
+    assert ev.entity_id == depositor
+    assert ev.token_out == burn_token
+    assert ev.amount_out == amount
+    assert ev.link_key == str(nonce)
+    assert ev.link_key_type == "cctp_nonce"
+    assert ev.extra["destination_domain"] == str(destination_domain)
+
+
 def test_uniswap_v4_initialize_decoder():
     """UniV4 Initialize: surfaces currency0 + currency1 as token_in/token_out
     so the pool registry can be built from canonical_events."""
