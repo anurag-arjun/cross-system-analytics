@@ -1,5 +1,56 @@
 # Journal
 
+## 2026-05-13 — ReplacingMergeTree migration + Phase B decoder grind
+
+Worked on: Closed the sink-dedup open thread by migrating
+canonical_events, canonical_logs, bridge_links to ReplacingMergeTree
+(engine handles dedup at merge time). Generalized the
+re-decode-from-raw workflow into ops/redecode.py and shipped 6 new
+decoders end-to-end on prod (aave_v3, lido, spark, compound_v3,
+morpho_blue, cctp).
+
+Decisions:
+  - **3 event tables → ReplacingMergeTree.** ORDER BY tuples chosen
+    for content-identical dedup; canonical_logs PARTITION BY chain
+    (was toYYYYMM(inserted_at)) so re-ingest hits the same partition
+    and merges actually collapse dupes.
+  - **FINAL on every canonical_events / bridge_links read in
+    api/queries.py.** Free in steady state (~120ms identical on dev).
+    Necessary because ReplacingMergeTree is eventually consistent.
+  - **Re-decode-from-raw is the right Phase B unblock.**
+    canonical_logs is the unfiltered HyperSync mirror; new decoder
+    = YAML + seed_<protocol>_contracts.py + `python ops/redecode.py
+    --protocol <slug>`. 6 decoders shipped today; prod dashboard
+    non_swap_defi went 0 → 10,100 on 2d window.
+  - **`.tickets/` is gitignored** — local-only convention. Durable
+    cross-machine artifacts are commits + facts.md + journal.md.
+  - **tk epic na-2haa** tracks BD requirements finish-out + remaining
+    LRT/perp/bridge leaves.
+
+Files touched: core/schemas/clickhouse/*, core/sink/clickhouse.py,
+api/queries.py, core/adapters/evm/decoders/mappings/{aave_v3, lido,
+spark, compound_v3, morpho_blue, cctp}.yaml, ops/{redecode.py,
+migrations/2026-05-13_replacing_mergetree.sql,
+run_replacing_mergetree.sh, seed_aave_v3_contracts.py,
+seed_lido_contracts.py, seed_spark_contracts.py,
+seed_compound_v3_contracts.py, seed_morpho_blue_contracts.py,
+seed_cctp_contracts.py}, core/tests/standalone/test_generic_decoder.py.
+
+Open threads:
+  - CCTP bridge_in (MessageReceived + MintAndWithdraw multi-log
+    handler — needs hand-written class, not YAML).
+  - LRT (Renzo / Kelp / EtherFi) — at least one needed for na-2haa.
+  - Perps — GMX V2 needs hand-written EventEmitter class (topic1
+    dispatch pattern).
+  - 3 more bridges to satisfy "at least 4" criterion (Wormhole,
+    Mayan, Hyperlane, Synapse, Hop, deBridge, Polygon PoS).
+  - 30-day backfill still paused; cron still disabled.
+  - Frontend hasn't been rebuilt since today's API changes (still
+    works — FINAL changes are server-side only).
+  - SSH-via-bash run_in_background batches its output until session
+    close, so deploys look slow even though work is fast. Consider
+    streaming via `ssh -t` or a Monitor-style poller next time.
+
 ## 2026-05-13 — Stress-tested perf stack; sink dedup is the next bottleneck
 
 Worked on: Second-pass perf wins on the cron pipeline (threading-safe API
