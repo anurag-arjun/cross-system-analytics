@@ -1,6 +1,6 @@
 # Nexus Analytics — Facts
 
-**Last reconciled:** 2026-05-11 (post-Phase D)
+**Last reconciled:** 2026-05-13 (perf rabbit hole + sink dedup finding)
 
 ## Architecture
 
@@ -87,14 +87,16 @@
 [2026-05-12] API queries (`api/queries.py`) hit `canonical_events` with `event_type='bridge_out'/'bridge_in'` directly — they do NOT use the `bridge_links` table. So the /bridge page was never blocked on bridge_links. The materialised `bridge_links` rows unlock NEW analyses (cross-chain funnel, bridge completion rate, FastBridge GA4→bridge→swap funnel).
 [2026-05-12] Cross-chain funnel shipped: `GET /api/bridge-flow/cross-chain-matrix` (src→dst aggregates with bridges/wallets/avg+p50 latency) and `GET /api/bridge-flow/completion` (matched% over bridge_outs). UI section on /bridge page powered by `bridge_links`. Real numbers from first 30d window: 44.7% link rate (970 of 2170 bridge_outs matched), top routes eth↔base + base→ethereum, latencies 2-200s depending on bridge family.
 [2026-05-12] First definitive measurement of the new architecture on cron tick 08:00 UTC: 1h35m total (was 3-4h). decoded_events alone was 95 min (~2.1× faster than old 3h18m). bridge_links via CH JOIN: 9.6s (was 4-5 min). raw_logs + token_prices skipped entirely (saved 36m + 47s). Polygon dominates decoded_events at ~57 min — chain-parallel ingest is the next perf lever.
-[2026-05-12] Aggregator dedup wired (commit eb68071) and verified correct: 2,448 swap_internal rows in canonical_events vs 1,975 aggregator-level top swaps; 0 un-reclassified candidates remaining. **Known cosmetic bug**: `dedup_aggregators()` returns 0 because CH `ALTER … UPDATE` is async — `result.written_rows` isn't populated synchronously. Correctness is unaffected; count log line just doesn't fire.
-[2026-05-12] `token_metadata` table is empty in prod. `token_prices` asset early-returns ("No tokens..."). `--skip-prices` added to cron. **Open thread**: wire up `TokenMetadataLoader` (defined in core/enrichment/metadata.py:62) somewhere in the ingest pipeline so USD enrichment actually populates and the bridge_links/canonical_events `amount_usd` columns aren't all 0.
+[2026-05-13] Aggregator dedup wired (commit eb68071) and verified correct (saw "reclassified 781 swap → swap_internal" in the 14:00 UTC May 12 tick log; ~3.2k swap_internal rows total). Count fix (commit 5c455c3) does a pre-mutation SELECT before the async `ALTER UPDATE` so the log line shows the real number.
+[2026-05-13] `token_metadata` seeded with 13 hardcoded major tokens (WETH/USDC/USDT/DAI/WBTC across eth/base/arb/op + a few extras) via `ops/seed_token_metadata.py` (commit 2ec8a16). Re-runnable safely (table is ReplacingMergeTree on (chain, address)). Polygon's `load_hardcoded` list is empty. **Open thread**: dynamic discovery for long-tail tokens — current state is amount_usd = 0 for unknown tokens.
 [2026-05-12] **`api/ch.py` thread-safety bug fixed** (commit `89e5b4a`): was `@lru_cache(maxsize=1)` on the clickhouse-connect client. FastAPI threadpool workers shared one client → concurrent dashboard requests tripped "Attempt to execute concurrent queries within the same session". Switched to `threading.local` so each worker thread gets its own client.
 [2026-05-12] **CH ingest throttle** (commit `e02985f`): every sink connection (ClickHouseSink, RawLogSink, BridgeLinkSink) now uses `settings={'max_threads': 4, 'max_insert_threads': 2, 'priority': 10}`. Caps ingest's CH CPU footprint and lets API queries (default priority=0) jump the queue. Trade-off: ingest somewhat slower per tick but dashboard stays responsive.
 [2026-05-12] **nginx 5-min response cache** for `/api/*` (commit `9652f8d`): proxy_cache + serve-stale-on-error. First panel load is the CH cost; everything after is sub-200ms from disk. `proxy_cache_use_stale` keeps the dashboard populated even mid-cron-tick. Cache is at `/var/cache/nginx/api`, 200MB cap, 30min inactive eviction. `X-Cache-Status` header exposed.
 [2026-05-12] **Parallel chain ingest** (commit `b04d30b`): decoded_events asset now runs all 5 chains via `asyncio.gather + asyncio.to_thread`. Without throttle, this maxes CH CPU for the duration. With throttle (above) + cache, the trade-off is balanced. Earlier sequential pattern: 95min wall (polygon dominates 57min). Parallel: ~57min wall.
 [2026-05-12] **second_hop_after_swap query** (commit `0cad49a`): added `event_type IN (_MEANINGFUL_LIST)` filter on the `next_events` CTE — previously scanned essentially the whole canonical_events table (~22M rows in 9d). Helped (49s → 35s) but cache made the rest of the optimisation moot.
 [2026-05-12] Daily event distribution at backfill resume time: 4 days had ANY data (2026-04-11 1.4M, 2026-05-07 9k, 2026-05-11 8.7M, 2026-05-12 8.3M). 24+3 days with zero. Backfill window 2026-04-12 → 2026-05-12 in flight (tmux session `backfill`).
+[2026-05-13] **Sink dedup pattern is the next perf bottleneck.** ClickHouseSink/RawLogSink/BridgeLinkSink call `_deduplicate(events)` on every flush — chunked SELECT against existing event_ids before INSERT. ~3000 round-trips per polygon chunk × ~2s under contention = ~1.5h wall just for polygon writes. **For backfill into mostly-empty days, 100% of dedup SELECTs return 0 — pure waste.** Either: `--no-dedup` flag for backfill mode, OR migrate `canonical_events` to ReplacingMergeTree (event_id-keyed) so dedup happens at merge time / via FINAL on read. Until fixed, backfill takes ~3-4h per cron-equivalent chunk and is infeasible at 30d × 5 chains × hourly granularity.
+[2026-05-13] Cron+backfill must be mutually exclusive in prod. Concurrent runs make both ~3-4× slower (HyperSync free-tier rate limits + CH write contention; observed 4h 42m for one cron tick that should have been 60-90 min). Either run via shared flock OR alternate via crontab schedule. Cron currently disabled in crontab (timestamped comment) while backfill catches up.
 
 ## Dependencies & Tooling
 
@@ -123,5 +125,7 @@
 [2026-05-11] BD MVP live at https://analytics.themuse.one on shieldtx-vps. **Cloudflare Tunnel + nginx basic-auth** (originally planned LE TLS + basic-auth; ended up with CF Tunnel TLS termination + same basic-auth gate). ClickHouse + Postgres bind to 127.0.0.1 on shifted ports.
 
 ## Superseded
+
+[2026-05-12 → 2026-05-13] ~~`token_metadata` table is empty in prod. `token_prices` asset early-returns ("No tokens...").~~ Superseded: seeded with 13 tokens via `ops/seed_token_metadata.py`. `token_prices` will run with real work; `--skip-prices` may stay in cron until throttle/cache picture stabilises.
 
 ## Stale

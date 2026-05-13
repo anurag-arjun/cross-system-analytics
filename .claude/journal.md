@@ -1,5 +1,38 @@
 # Journal
 
+## 2026-05-13 — Stress-tested perf stack; sink dedup is the next bottleneck
+
+Worked on: Second-pass perf wins on the cron pipeline (threading-safe API
+client, nginx 5-min cache, CH ingest throttle, parallel chain ingest,
+second_hop CTE filter, aggregator dedup count fix, token_metadata seeder).
+Resumed 30d backfill, observed cron+backfill contention (4h 42m ticks
+under load), paused backfill, disabled cron mid-investigation.
+
+Decisions:
+  - **Cron disabled** in crontab (timestamped comment) until backfill
+    clears. Cron+backfill concurrent → both ~3-4× slower.
+  - **Sink dedup pattern is the next perf lever**: per-1000-event
+    SELECT-then-filter does ~3000 round-trips per polygon chunk × ~2s
+    under load = 1.5h+ wall just for polygon writes. For backfill into
+    mostly-empty days, every SELECT returns 0 — pure waste. Need
+    `--no-dedup` flag for backfill OR migrate canonical_events to
+    ReplacingMergeTree.
+  - **API responsiveness solved**: per-thread CH client (commit 89e5b4a)
+    + nginx 5-min cache (9652f8d) + ingest throttle (e02985f). First
+    hit pays CH cost, refreshes sub-200ms even mid-tick.
+
+Files touched: core/sink/clickhouse.py, api/{ch,queries,main}.py,
+ops/dagster/nexus_pipeline/assets.py, ops/{nginx/nexus.conf,
+run_ingestion.py, seed_token_metadata.py, import_dune_contracts.py},
+frontend/src/{lib/api.ts, pages/BridgeFlow.tsx}.
+
+Open threads:
+  - Re-enable cron after backfill done (commented in crontab).
+  - Sink-dedup structural fix: --no-dedup flag for backfill OR
+    ReplacingMergeTree migration.
+  - Dynamic token_metadata discovery for long-tail tokens.
+  - Backfill currently paused mid-window (2026-04-12 → 2026-05-12).
+
 ## 2026-05-11 — Phase D: VPS deploy live at analytics.themuse.one
 
 Worked on: na-7pax (Phase D / na-7715 epic). Shipped the BD MVP to
