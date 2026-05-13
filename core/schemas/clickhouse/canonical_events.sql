@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS nexus.canonical_events (
 
   -- free-form
   extra              String CODEC(ZSTD(3))     -- JSON, schema-validated per event_type
-) ENGINE = MergeTree
-ORDER BY (entity_id, timestamp)
+) ENGINE = ReplacingMergeTree
+ORDER BY (entity_id, timestamp, event_id)
 PARTITION BY toYYYYMM(timestamp);
+-- Dedup happens at merge time on the ORDER BY tuple. event_id is the
+-- deterministic content hash; same source event re-ingested produces an
+-- identical row that collapses on merge. Use FINAL on aggregates that
+-- can't tolerate unmerged duplicates (count/sum); trajectory queries
+-- still benefit from the (entity_id, timestamp) prefix.

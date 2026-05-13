@@ -3,8 +3,9 @@ logs + events.
 
 The hourly cron (ops/run_ingestion.py) only catches the latest 60 minutes;
 this script fills the gap when you want N days of history at once. It is
-idempotent — the ClickHouse sinks dedupe on event_id / (tx_hash, log_index),
-so re-running an overlapping window is safe.
+idempotent — canonical_events and canonical_logs are ReplacingMergeTree,
+so duplicate rows from re-running an overlapping window collapse at merge
+time.
 
 Chunked to keep individual HyperSync queries bounded — the 5-min smoke
 showed ~140k decoded events on Polygon alone, so 30 days × 5 chains in

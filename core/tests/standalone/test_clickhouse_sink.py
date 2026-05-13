@@ -103,6 +103,25 @@ class TestClickHouseSinkBuffering:
         assert len(mock.inserts) == 1
         assert mock.inserts[0][0] == "canonical_events"
 
+    def test_no_pre_insert_select(self):
+        """Contract: sink issues NO SELECT before insert. Engine-level dedup
+        (ReplacingMergeTree) handles duplicates. MockClient has no .query()
+        method — this test would AttributeError if the sink reintroduced a
+        pre-insert dedup roundtrip."""
+        mock = MockClient()
+        sink = ClickHouseSink(SinkConfig(batch_size=10), client=mock)
+        # Three events, two duplicates by event_id.
+        sink.write([
+            _make_event(event_id="ev1"),
+            _make_event(event_id="ev1"),
+            _make_event(event_id="ev2"),
+        ])
+        flushed = sink.flush()
+        # All 3 inserted as-is; dedup happens at merge time in CH.
+        assert flushed == 3
+        assert len(mock.inserts) == 1
+        assert len(mock.inserts[0][1]) == 3
+
 
 class TestEventToRow:
     def test_row_structure(self):

@@ -72,8 +72,8 @@ class ClickHouseSink(EventSink):
         return self._client
 
     def write(self, events: list[CanonicalEvent]) -> int:
-        """Buffer events.  Deduplication is deferred to flush() to avoid
-        a ClickHouse round-trip on every single-event write."""
+        """Buffer events. The target table is ReplacingMergeTree, so
+        duplicates collapse at merge time — no pre-insert dedup needed."""
         self._buffer.extend(events)
         if len(self._buffer) >= self.config.batch_size:
             return self.flush()
@@ -84,49 +84,16 @@ class ClickHouseSink(EventSink):
         return self.write([event])
 
     def flush(self) -> int:
-        """Deduplicate buffered events against ClickHouse, then insert."""
+        """Insert all buffered events. Engine-level dedup handles duplicates."""
         if not self._buffer:
             return 0
         client = self._ensure_client()
-        new_events = self._deduplicate(self._buffer)
-        if not new_events:
-            self._buffer.clear()
-            return 0
-        rows = [_event_to_row(ev) for ev in new_events]
+        rows = [_event_to_row(ev) for ev in self._buffer]
         client.insert(self.config.table, rows)
-        count = len(new_events)
+        count = len(self._buffer)
         self._total_written += count
         self._buffer.clear()
         return count
-
-    def _deduplicate(self, events: list[CanonicalEvent]) -> list[CanonicalEvent]:
-        """Filter out events whose event_id already exists in ClickHouse.
-
-        Queries are chunked to avoid 'Field value too long' errors when the
-        IN clause contains thousands of IDs."""
-        if not events or self._client is None:
-            return events
-
-        event_ids = [ev.event_id for ev in events]
-        existing: set[str] = set()
-
-        # Chunk to keep the HTTP query under ClickHouse's field size limit.
-        _DEDUP_CHUNK = 1000
-        for i in range(0, len(event_ids), _DEDUP_CHUNK):
-            chunk = event_ids[i : i + _DEDUP_CHUNK]
-            try:
-                result = self._client.query(
-                    f"SELECT event_id FROM {self.config.table}"
-                    f" WHERE event_id IN {{event_ids:Array(String)}}",
-                    parameters={"event_ids": chunk},
-                )
-                existing.update(row[0] for row in result.result_rows)
-            except Exception:
-                # If the query fails, let this chunk through.
-                # The next pipeline run will catch any duplicates.
-                pass
-
-        return [ev for ev in events if ev.event_id not in existing]
 
     def close(self) -> None:
         self.flush()
@@ -140,11 +107,6 @@ class ClickHouseSink(EventSink):
     @property
     def total_written(self) -> int:
         return self._total_written
-
-    def close(self) -> None:
-        self.flush()
-        if self._client is not None:
-            self._client.close()
 
     def dedup_aggregators(self) -> int:
         """Mark underlying DEX Swap events as 'swap_internal' when an

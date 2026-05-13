@@ -24,6 +24,10 @@ CREATE TABLE IF NOT EXISTS nexus.bridge_links (
   
   link_confidence    Float32 DEFAULT 1.0,
   validated_at       DateTime64(3) DEFAULT now()
-) ENGINE = MergeTree
-ORDER BY (link_key_type, link_key, src_chain, dst_chain)
+) ENGINE = ReplacingMergeTree
+ORDER BY (link_key_type, link_key, src_chain, dst_chain, src_event_id, dst_event_id)
 PARTITION BY toYYYYMM(src_block_time);
+-- Dedup on the full (link_key, src_event_id, dst_event_id) tuple at merge
+-- time. The (link_key_type, link_key, src_chain, dst_chain) prefix
+-- preserves the existing lookup plan; the src/dst_event_id suffix gives
+-- the dedup uniqueness.

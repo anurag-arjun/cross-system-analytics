@@ -14,6 +14,11 @@ CREATE TABLE IF NOT EXISTS nexus.canonical_logs (
   decoded            UInt8 DEFAULT 0,          -- 0 = undecoded, 1 = decoded
   decoder_version    UInt32 DEFAULT 0,         -- registry version that decoded this
   inserted_at        DateTime64(3) DEFAULT now()
-) ENGINE = MergeTree
-ORDER BY (block_number, log_index)
-PARTITION BY toYYYYMM(inserted_at);
+) ENGINE = ReplacingMergeTree
+ORDER BY (chain, block_number, tx_hash, log_index)
+PARTITION BY chain;
+-- Dedup happens at merge time on the ORDER BY tuple. (chain, block_number,
+-- tx_hash, log_index) is the natural key for an EVM log. Partition by
+-- chain (not by month-of-inserted_at) so re-ingesting an old log lands in
+-- the same partition as the original — without this, merges can't see
+-- the duplicate and dedup never fires.

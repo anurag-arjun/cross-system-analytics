@@ -63,7 +63,7 @@ def bridge_summary(days: int, chain: str | None) -> str:
                     OR event_type LIKE 'stake%'
                     OR event_type LIKE 'lp_%'
                     OR event_type = 'claim')   AS non_swap_defi
-        FROM canonical_events
+        FROM canonical_events FINAL
         WHERE timestamp > now() - INTERVAL {days} DAY
           {cc}
     """
@@ -80,7 +80,7 @@ def bridge_breakdown(days: int, chain: str | None) -> str:
             countIf(event_type = 'bridge_in')  AS bridge_ins,
             countIf(event_type = 'bridge_out') AS bridge_outs,
             count() AS total
-        FROM canonical_events
+        FROM canonical_events FINAL
         WHERE event_type IN ('bridge_in', 'bridge_out')
           AND timestamp > now() - INTERVAL {days} DAY
           AND protocol != ''
@@ -100,14 +100,14 @@ def first_action_after_bridge(days: int, chain: str | None) -> str:
         WITH
             bridges AS (
                 SELECT entity_id, chain, protocol AS bridge_protocol, timestamp AS bridge_time
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type = 'bridge_in'
                   AND timestamp > now() - INTERVAL {days} DAY
                   {_chain_clause(chain)}
             ),
             next_events AS (
                 SELECT entity_id, chain, event_type, protocol, timestamp
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type IN ({_MEANINGFUL_LIST})
                   AND timestamp > now() - INTERVAL {days + 1} DAY
                   {_chain_clause(chain)}
@@ -142,14 +142,14 @@ def swap_vs_non_swap(days: int, chain: str | None) -> str:
         WITH
             bridges AS (
                 SELECT entity_id, chain, timestamp AS bridge_time
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type = 'bridge_in'
                   AND timestamp > now() - INTERVAL {days} DAY
                   {_chain_clause(chain)}
             ),
             next_events AS (
                 SELECT entity_id, chain, event_type, timestamp
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type IN ({_MEANINGFUL_LIST})
                   AND timestamp > now() - INTERVAL {days + 1} DAY
                   {_chain_clause(chain)}
@@ -184,21 +184,21 @@ def second_hop_after_swap(days: int, chain: str | None) -> str:
         WITH
             bridges AS (
                 SELECT entity_id, chain, timestamp AS bridge_time
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type = 'bridge_in'
                   AND timestamp > now() - INTERVAL {days} DAY
                   {_chain_clause(chain)}
             ),
             swaps AS (
                 SELECT entity_id, chain, protocol AS swap_protocol, timestamp AS swap_time
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type = 'swap'
                   AND timestamp > now() - INTERVAL {days + 1} DAY
                   {_chain_clause(chain)}
             ),
             next_events AS (
                 SELECT entity_id, chain, event_type, protocol, timestamp
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type IN ({_MEANINGFUL_LIST})
                   AND timestamp > now() - INTERVAL {days + 2} DAY
                   {_chain_clause(chain)}
@@ -237,14 +237,14 @@ def activity_after_bridge_24h(days: int, chain: str | None) -> str:
         WITH
             bridges AS (
                 SELECT entity_id, chain, timestamp AS bridge_time
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type = 'bridge_in'
                   AND timestamp > now() - INTERVAL {days} DAY
                   {_chain_clause(chain)}
             ),
             actions AS (
                 SELECT entity_id, chain, timestamp
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type IN ({_MEANINGFUL_LIST})
                   AND timestamp > now() - INTERVAL {days + 1} DAY
                   {_chain_clause(chain)}
@@ -269,14 +269,14 @@ def top_protocols_after_bridge_24h(days: int, chain: str | None) -> str:
         WITH
             bridges AS (
                 SELECT entity_id, chain, timestamp AS bridge_time
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type = 'bridge_in'
                   AND timestamp > now() - INTERVAL {days} DAY
                   {_chain_clause(chain)}
             ),
             actions AS (
                 SELECT entity_id, chain, protocol, timestamp
-                FROM canonical_events
+                FROM canonical_events FINAL
                 WHERE event_type IN ({_MEANINGFUL_LIST})
                   AND protocol != ''
                   AND timestamp > now() - INTERVAL {days + 1} DAY
@@ -310,7 +310,7 @@ def spike_summary(days: int) -> str:
                 toStartOfHour(timestamp) AS hour,
                 count() AS events,
                 uniqExact(entity_id) AS wallets
-            FROM canonical_events
+            FROM canonical_events FINAL
             WHERE venue != '' AND protocol != ''
               AND timestamp > now() - INTERVAL {days} DAY
             GROUP BY venue, protocol, chain, hour
@@ -353,7 +353,7 @@ def hourly_spikes(days: int, chain: str | None, alert: str | None, limit: int) -
                 toStartOfHour(timestamp) AS hour,
                 count() AS events,
                 uniqExact(entity_id) AS wallets
-            FROM canonical_events
+            FROM canonical_events FINAL
             WHERE venue != '' AND protocol != ''
               AND timestamp > now() - INTERVAL {days} DAY
               {cc}
@@ -399,7 +399,7 @@ def daily_spikes(days: int, chain: str | None, alert: str | None, limit: int) ->
                 toDate(timestamp) AS day,
                 count() AS events,
                 uniqExact(entity_id) AS wallets
-            FROM canonical_events
+            FROM canonical_events FINAL
             WHERE venue != '' AND protocol != ''
               AND timestamp > now() - INTERVAL 30 DAY
               {cc}
@@ -448,7 +448,7 @@ def activity_timeline(days: int, chain: str | None) -> str:
             toStartOfHour(timestamp) AS hour,
             count() AS events,
             uniqExact(entity_id) AS wallets
-        FROM canonical_events
+        FROM canonical_events FINAL
         WHERE timestamp > now() - INTERVAL {days} DAY
           {cc}
         GROUP BY hour
@@ -464,7 +464,7 @@ def active_protocols(days: int, chain: str | None, limit: int) -> str:
             count(DISTINCT venue)        AS venues,
             count()                      AS events,
             uniqExact(entity_id)         AS wallets
-        FROM canonical_events
+        FROM canonical_events FINAL
         WHERE venue != '' AND protocol != ''
           AND timestamp > now() - INTERVAL {days} DAY
           {cc}
@@ -500,7 +500,7 @@ def cross_chain_matrix(days: int, chain: str | None) -> str:
             sum(coalesce(amount_usd, 0)) AS total_usd,
             avg(date_diff('second', src_block_time, dst_block_time)) AS avg_latency_seconds,
             quantileExact(0.5)(date_diff('second', src_block_time, dst_block_time)) AS p50_latency_seconds
-        FROM bridge_links
+        FROM bridge_links FINAL
         WHERE src_block_time > now() - INTERVAL {days} DAY
           {where_chain}
         GROUP BY src_chain, dst_chain
@@ -518,7 +518,7 @@ def bridge_completion(days: int, chain: str | None) -> str:
         WITH outs AS (
             SELECT
                 event_id, chain, timestamp, link_key
-            FROM canonical_events
+            FROM canonical_events FINAL
             WHERE event_type = 'bridge_out'
               AND link_key IS NOT NULL
               AND timestamp > now() - INTERVAL {days} DAY
@@ -531,7 +531,7 @@ def bridge_completion(days: int, chain: str | None) -> str:
             round(100.0 * countIf(bl.src_event_id != '') / count(), 2) AS link_rate_pct
         FROM outs o
         LEFT JOIN (
-            SELECT src_event_id FROM bridge_links
+            SELECT src_event_id FROM bridge_links FINAL
             WHERE src_block_time > now() - INTERVAL {days} DAY
         ) bl ON bl.src_event_id = o.event_id
     """
