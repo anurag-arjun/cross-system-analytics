@@ -142,7 +142,7 @@ export function Loading({ label = 'Loading…' }: { label?: string }) {
 export function ErrorBox({ error }: { error: unknown }) {
   const msg = error instanceof Error ? error.message : String(error);
   return (
-    <div className="rounded-md border border-[var(--color-alert-extreme)]/40 bg-[var(--color-alert-extreme)]/10 px-3 py-2 text-sm">
+    <div className="rounded-md border border-[var(--color-alert-extreme)]/40 bg-[var(--color-alert-extreme)]/10 px-3 py-2 text-sm text-[var(--color-alert-extreme)]">
       {msg}
     </div>
   );

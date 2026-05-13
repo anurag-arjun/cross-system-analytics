@@ -7,7 +7,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Banner, Card, ErrorBox, Loading, Section, Table } from '@/components/ui';
 import {
@@ -23,14 +23,14 @@ import { durationFromSeconds, full, shortAddr } from '@/lib/format';
 // ---------------------------------------------------------------------------
 
 const STATUS_PRESENT: Record<BridgeStatus, { label: string; tone: string }> = {
-  MATCHED:                    { label: 'matched',         tone: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' },
-  PENDING_FINALITY:           { label: 'pending finality', tone: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  IN_FLIGHT:                  { label: 'in flight',        tone: 'bg-amber-500/20 text-amber-300 border-amber-500/30' },
-  UNMATCHED_DST_OUT_OF_SCOPE: { label: 'dst out of scope', tone: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30' },
-  UNMATCHED_SRC_OUT_OF_SCOPE: { label: 'src out of scope', tone: 'bg-zinc-500/20 text-zinc-300 border-zinc-500/30' },
-  UNMATCHED_DECODER_GAP:      { label: 'decoder gap',      tone: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-  UNMATCHED_BROKEN_MATCHER:   { label: 'broken matcher',   tone: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
-  UNMATCHED_UNKNOWN:          { label: 'unknown',          tone: 'bg-rose-500/20 text-rose-300 border-rose-500/30' },
+  MATCHED:                    { label: 'matched',         tone: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  PENDING_FINALITY:           { label: 'pending finality', tone: 'bg-amber-100 text-amber-800 border-amber-300' },
+  IN_FLIGHT:                  { label: 'in flight',        tone: 'bg-amber-100 text-amber-800 border-amber-300' },
+  UNMATCHED_DST_OUT_OF_SCOPE: { label: 'dst out of scope', tone: 'bg-zinc-100 text-zinc-700 border-zinc-300' },
+  UNMATCHED_SRC_OUT_OF_SCOPE: { label: 'src out of scope', tone: 'bg-zinc-100 text-zinc-700 border-zinc-300' },
+  UNMATCHED_DECODER_GAP:      { label: 'decoder gap',      tone: 'bg-rose-100 text-rose-800 border-rose-300' },
+  UNMATCHED_BROKEN_MATCHER:   { label: 'broken matcher',   tone: 'bg-rose-100 text-rose-800 border-rose-300' },
+  UNMATCHED_UNKNOWN:          { label: 'unknown',          tone: 'bg-rose-100 text-rose-800 border-rose-300' },
 };
 
 const TAG_LABELS: Record<BridgeTag, string> = {
@@ -61,6 +61,9 @@ const WINDOWS = [
   { hours: 336, label: '14d' },
 ];
 
+const PAGE_SIZES = [20, 50, 100] as const;
+type PageSize = (typeof PAGE_SIZES)[number];
+
 const CHAINS = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon'] as const;
 
 // ---------------------------------------------------------------------------
@@ -72,11 +75,19 @@ export function BridgeExplorerPage() {
   const [statusFilter, setStatusFilter] = useState<Set<BridgeStatus>>(new Set());
   const [chainFilter, setChainFilter] = useState<Set<string>>(new Set());
   const [bridgeFilter, setBridgeFilter] = useState<Set<string>>(new Set());
+  const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [page, setPage] = useState(0);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['explorer', hours],
     queryFn: () => fetchExplorer(hours, { limit: 2000 }),
   });
+
+  // Reset to page 0 whenever the filter set or window changes — otherwise
+  // we'd land on a page that's now empty.
+  useEffect(() => {
+    setPage(0);
+  }, [statusFilter, chainFilter, bridgeFilter, hours, pageSize]);
 
   // Client-side filter so the user can flip statuses without re-querying.
   const filteredRows = useMemo(() => {
@@ -98,6 +109,10 @@ export function BridgeExplorerPage() {
     () => Object.keys(data?.summary ?? {}).sort(),
     [data],
   );
+
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(page, pageCount - 1);
+  const pagedRows = filteredRows.slice(safePage * pageSize, (safePage + 1) * pageSize);
 
   return (
     <div>
@@ -151,8 +166,16 @@ export function BridgeExplorerPage() {
               allBridges={allBridges}
             />
             <Card className="mt-3 p-0 overflow-hidden">
-              <RowTable rows={filteredRows} />
+              <RowTable rows={pagedRows} />
             </Card>
+            <Pager
+              page={safePage}
+              pageCount={pageCount}
+              pageSize={pageSize}
+              setPage={setPage}
+              setPageSize={setPageSize}
+              totalRows={filteredRows.length}
+            />
           </Section>
 
           <Banner>
@@ -224,12 +247,12 @@ function PunchListCard({
         <div className="text-lg">{health}</div>
       </div>
       <ul className="mt-2 space-y-1 text-xs">
-        {matched > 0           && <Line label="matched"        n={matched}          tone="text-emerald-300" />}
-        {pendingOrInflight > 0 && <Line label="in flight"      n={pendingOrInflight} tone="text-amber-300" />}
-        {outOfScope > 0        && <Line label="out of scope"   n={outOfScope}        tone="text-zinc-400" />}
-        {(statuses.UNMATCHED_DECODER_GAP ?? 0)   > 0 && <Line label="decoder gap"   n={statuses.UNMATCHED_DECODER_GAP ?? 0}    tone="text-rose-300" />}
-        {(statuses.UNMATCHED_BROKEN_MATCHER ?? 0) > 0 && <Line label="broken matcher" n={statuses.UNMATCHED_BROKEN_MATCHER ?? 0} tone="text-rose-300" />}
-        {unknown > 0           && <Line label="unknown"        n={unknown}           tone="text-rose-300" />}
+        {matched > 0           && <Line label="matched"        n={matched}          tone="text-emerald-700" />}
+        {pendingOrInflight > 0 && <Line label="in flight"      n={pendingOrInflight} tone="text-amber-700" />}
+        {outOfScope > 0        && <Line label="out of scope"   n={outOfScope}        tone="text-zinc-600" />}
+        {(statuses.UNMATCHED_DECODER_GAP ?? 0)   > 0 && <Line label="decoder gap"   n={statuses.UNMATCHED_DECODER_GAP ?? 0}    tone="text-rose-700" />}
+        {(statuses.UNMATCHED_BROKEN_MATCHER ?? 0) > 0 && <Line label="broken matcher" n={statuses.UNMATCHED_BROKEN_MATCHER ?? 0} tone="text-rose-700" />}
+        {unknown > 0           && <Line label="unknown"        n={unknown}           tone="text-rose-700" />}
       </ul>
     </Card>
   );
@@ -425,7 +448,7 @@ function RowTable({ rows }: { rows: ExplorerRow[] }) {
                 {r.tags.map((t) => (
                   <span
                     key={t}
-                    className="px-1.5 py-0.5 rounded text-xs border border-amber-500/30 bg-amber-500/10 text-amber-300"
+                    className="px-1.5 py-0.5 rounded text-xs border border-amber-300 bg-amber-100 text-amber-800"
                     title={t}
                   >
                     {TAG_LABELS[t]}
@@ -456,6 +479,75 @@ function RowTable({ rows }: { rows: ExplorerRow[] }) {
         },
       ]}
     />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pager
+// ---------------------------------------------------------------------------
+
+function Pager({
+  page,
+  pageCount,
+  pageSize,
+  setPage,
+  setPageSize,
+  totalRows,
+}: {
+  page: number;
+  pageCount: number;
+  pageSize: PageSize;
+  setPage: (n: number) => void;
+  setPageSize: (n: PageSize) => void;
+  totalRows: number;
+}) {
+  const start = totalRows === 0 ? 0 : page * pageSize + 1;
+  const end = Math.min((page + 1) * pageSize, totalRows);
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+      <span className="text-[var(--color-muted)] tabular">
+        {full(start)}–{full(end)} of {full(totalRows)}
+      </span>
+
+      <div className="flex gap-1 rounded-md bg-[var(--color-panel)] border border-[var(--color-border)] p-1">
+        <button
+          onClick={() => setPage(Math.max(0, page - 1))}
+          disabled={page === 0}
+          className="px-2.5 py-1 text-sm rounded text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          ← Prev
+        </button>
+        <span className="px-2 py-1 text-xs tabular text-[var(--color-muted)] self-center">
+          page {page + 1} / {pageCount}
+        </span>
+        <button
+          onClick={() => setPage(Math.min(pageCount - 1, page + 1))}
+          disabled={page >= pageCount - 1}
+          className="px-2.5 py-1 text-sm rounded text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className="ml-auto flex items-center gap-2">
+        <span className="text-xs uppercase tracking-wider text-[var(--color-muted)]">per page</span>
+        <div className="flex gap-1 rounded-md bg-[var(--color-panel)] border border-[var(--color-border)] p-1">
+          {PAGE_SIZES.map((n) => (
+            <button
+              key={n}
+              onClick={() => setPageSize(n)}
+              className={`px-2 py-0.5 rounded text-xs transition ${
+                pageSize === n
+                  ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
+                  : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+              }`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 

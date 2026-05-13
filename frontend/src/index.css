@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: oklch(0.16 0.01 240);
-  --color-panel: oklch(0.22 0.01 240);
-  --color-panel-2: oklch(0.26 0.01 240);
-  --color-border: oklch(0.32 0.01 240);
-  --color-text: oklch(0.93 0.005 240);
-  --color-muted: oklch(0.62 0.01 240);
-  --color-accent: oklch(0.72 0.18 250);
-  --color-accent-bg: oklch(0.30 0.10 250);
-  --color-alert-extreme: oklch(0.62 0.22 25);
-  --color-alert-high: oklch(0.74 0.20 70);
+  --color-bg: oklch(1 0 0);                  /* pure white */
+  --color-panel: oklch(0.985 0.002 240);     /* near-white panel */
+  --color-panel-2: oklch(0.965 0.003 240);   /* subtle banner */
+  --color-border: oklch(0.90 0.005 240);     /* light gray divider */
+  --color-text: oklch(0.20 0.01 240);        /* near-black */
+  --color-muted: oklch(0.50 0.01 240);       /* mid gray */
+  --color-accent: oklch(0.50 0.18 250);      /* blue, darker for contrast on white */
+  --color-accent-bg: oklch(0.95 0.05 250);   /* faint blue chip fill */
+  --color-alert-extreme: oklch(0.55 0.22 25);
+  --color-alert-high: oklch(0.62 0.20 70);
 }
 
 * {
@@ -29,6 +29,6 @@ html, body, #root {
   -moz-osx-font-smoothing: grayscale;
 }
 
-body { color-scheme: dark; }
+body { color-scheme: light; }
 
 .tabular { font-variant-numeric: tabular-nums; }
