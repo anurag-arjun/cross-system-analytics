@@ -509,6 +509,146 @@ def cross_chain_matrix(days: int, chain: str | None) -> str:
     """
 
 
+def bridge_explorer_rows(
+    hours: int,
+    chains: list[str] | None,
+    bridges: list[str] | None,
+    limit: int,
+) -> str:
+    """Union of three legs for the bridge explorer:
+
+      pair       — matched bridge_out + bridge_in via bridge_links
+      orphan_out — bridge_out with no row in bridge_links.src_event_id
+      orphan_in  — bridge_in  with no row in bridge_links.dst_event_id
+
+    All three legs return the same column shape so the classifier sees
+    a uniform row dict. Chain filter applies to either side of the
+    bridge (src OR dst); bridge filter restricts protocol.
+
+    `hours` is the window for bridge_outs / pairs. For orphan_ins we
+    widen to 7 days because a bridge_in's matching bridge_out may have
+    happened up to 7 days earlier.
+    """
+    bridge_in_filter = ""
+    bridge_out_filter = ""
+    if bridges:
+        slugs = ",".join(f"'{b}'" for b in bridges)
+        bridge_in_filter  = f"AND bridge IN ({slugs})"
+        bridge_out_filter = f"AND bridge IN ({slugs})"
+
+    chain_pair = ""
+    chain_out = ""
+    chain_in = ""
+    if chains:
+        slugs = ",".join(f"'{c}'" for c in chains)
+        chain_pair = f"AND (bl.src_chain IN ({slugs}) OR bl.dst_chain IN ({slugs}))"
+        chain_out  = f"AND chain IN ({slugs})"
+        chain_in   = f"AND chain IN ({slugs})"
+
+    return f"""
+    WITH
+      -- already-linked source events (anti-join target for orphan_out)
+      linked_src AS (
+        SELECT src_event_id FROM bridge_links FINAL
+        WHERE src_block_time > now() - INTERVAL {hours} HOUR
+      ),
+      linked_dst AS (
+        SELECT dst_event_id FROM bridge_links FINAL
+        WHERE dst_block_time > now() - INTERVAL {hours} HOUR
+      )
+
+    -- Leg 1: matched pairs
+    SELECT
+      'pair' AS row_type,
+      bl.link_key AS link_key,
+      bl.link_key_type AS link_key_type,
+      bo.protocol AS bridge,
+      bl.src_chain      AS src_chain,
+      bl.src_block_time AS src_block_time,
+      bl.src_tx_hash    AS src_tx_hash,
+      bl.src_entity_id  AS src_entity_id,
+      bl.src_event_id   AS src_event_id,
+      bl.dst_chain      AS dst_chain,
+      bl.dst_block_time AS dst_block_time,
+      bl.dst_tx_hash    AS dst_tx_hash,
+      bl.dst_entity_id  AS dst_entity_id,
+      bl.dst_event_id   AS dst_event_id,
+      bo.token_out      AS src_token,
+      bo.amount_out     AS src_amount,
+      bo.amount_out_usd AS src_amount_usd,
+      bi.token_in       AS dst_token,
+      bi.amount_in      AS dst_amount,
+      bi.amount_in_usd  AS dst_amount_usd,
+      toInt32(date_diff('second', bl.src_block_time, bl.dst_block_time)) AS latency_seconds,
+      ''                AS dst_chain_id_hint,
+      ''                AS src_chain_id_hint
+    FROM (SELECT * FROM bridge_links FINAL WHERE src_block_time > now() - INTERVAL {hours} HOUR) AS bl
+    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out') AS bo ON bo.event_id = bl.src_event_id
+    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in')  AS bi ON bi.event_id = bl.dst_event_id
+    WHERE 1=1
+      {bridge_in_filter.replace('bridge', 'bo.protocol')}
+      {chain_pair}
+
+    UNION ALL
+
+    -- Leg 2: orphan bridge_outs
+    SELECT
+      'orphan_out' AS row_type,
+      link_key, link_key_type, protocol AS bridge,
+      chain        AS src_chain,
+      timestamp    AS src_block_time,
+      tx_hash      AS src_tx_hash,
+      entity_id    AS src_entity_id,
+      event_id     AS src_event_id,
+      NULL AS dst_chain, NULL AS dst_block_time, NULL AS dst_tx_hash,
+      NULL AS dst_entity_id, NULL AS dst_event_id,
+      token_out     AS src_token,
+      amount_out    AS src_amount,
+      amount_out_usd AS src_amount_usd,
+      NULL AS dst_token, NULL AS dst_amount, NULL AS dst_amount_usd,
+      NULL AS latency_seconds,
+      extract(extra, '"destination_chain_id"\\s*:\\s*(\\d+)') AS dst_chain_id_hint,
+      ''  AS src_chain_id_hint
+    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out') AS bo2
+    WHERE timestamp > now() - INTERVAL {hours} HOUR
+      AND event_id NOT IN (SELECT src_event_id FROM linked_src)
+      {bridge_out_filter.replace('bridge', 'protocol')}
+      {chain_out}
+
+    UNION ALL
+
+    -- Leg 3: orphan bridge_ins
+    SELECT
+      'orphan_in' AS row_type,
+      link_key, link_key_type, protocol AS bridge,
+      NULL AS src_chain, NULL AS src_block_time, NULL AS src_tx_hash,
+      NULL AS src_entity_id, NULL AS src_event_id,
+      chain      AS dst_chain,
+      timestamp  AS dst_block_time,
+      tx_hash    AS dst_tx_hash,
+      entity_id  AS dst_entity_id,
+      event_id   AS dst_event_id,
+      NULL AS src_token, NULL AS src_amount, NULL AS src_amount_usd,
+      token_in       AS dst_token,
+      amount_in      AS dst_amount,
+      amount_in_usd  AS dst_amount_usd,
+      NULL AS latency_seconds,
+      ''  AS dst_chain_id_hint,
+      coalesce(
+        nullif(JSONExtractString(extra, 'origin_chain_id'), ''),
+        extract(extra, '"origin_chain_id"\\s*:\\s*(\\d+)')
+      ) AS src_chain_id_hint
+    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in') AS bi2
+    WHERE timestamp > now() - INTERVAL {hours} HOUR
+      AND event_id NOT IN (SELECT dst_event_id FROM linked_dst)
+      {bridge_in_filter.replace('bridge', 'protocol')}
+      {chain_in}
+
+    ORDER BY coalesce(src_block_time, dst_block_time) DESC
+    LIMIT {limit}
+    """
+
+
 def bridge_completion(days: int, chain: str | None) -> str:
     """Of the bridge_outs in the window, how many got matched (ie a
     bridge_in was found within 7 days)? `link_rate` is the headline.

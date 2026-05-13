@@ -108,6 +108,78 @@ export interface BridgeCompletion {
 export const fetchBridgeCompletion = (days: number, chain: Chain) =>
   get<BridgeCompletion>('/api/bridge-flow/completion', { days, chain });
 
+// ----------------- Bridge explorer -----------------
+
+export type BridgeStatus =
+  | 'MATCHED'
+  | 'PENDING_FINALITY'
+  | 'IN_FLIGHT'
+  | 'UNMATCHED_DST_OUT_OF_SCOPE'
+  | 'UNMATCHED_SRC_OUT_OF_SCOPE'
+  | 'UNMATCHED_DECODER_GAP'
+  | 'UNMATCHED_BROKEN_MATCHER'
+  | 'UNMATCHED_UNKNOWN';
+
+export type BridgeTag =
+  | 'AMOUNT_MISMATCH'
+  | 'LATENCY_OUTLIER'
+  | 'NEGATIVE_LATENCY'
+  | 'SAME_CHAIN'
+  | 'MULTI_MATCH'
+  | 'RECIPIENT_DIFFERS'
+  | 'NO_USD_VALUE'
+  | 'TOKEN_CHANGED';
+
+export interface ExplorerRow {
+  row_type: 'pair' | 'orphan_out' | 'orphan_in';
+  bridge: string;
+  status: BridgeStatus;
+  status_reason: string;
+  tags: BridgeTag[];
+  link_key: string | null;
+  link_key_type: string | null;
+
+  src_chain: string | null;
+  src_block_time: string | null;
+  src_tx_hash: string | null;
+  src_entity_id: string | null;
+  src_event_id: string | null;
+
+  dst_chain: string | null;
+  dst_block_time: string | null;
+  dst_tx_hash: string | null;
+  dst_entity_id: string | null;
+  dst_event_id: string | null;
+
+  src_token: string | null;
+  src_amount: string | null;
+  src_amount_usd: number | null;
+  dst_token: string | null;
+  dst_amount: string | null;
+  dst_amount_usd: number | null;
+
+  latency_seconds: number | null;
+}
+
+export interface ExplorerResponse {
+  window_hours: number;
+  row_count: number;
+  rows: ExplorerRow[];
+  summary: Record<string, Partial<Record<BridgeStatus, number>>>;
+}
+
+export const fetchExplorer = (
+  hours: number,
+  opts: { chains?: string; bridges?: string; statuses?: string; limit?: number } = {},
+) =>
+  get<ExplorerResponse>('/api/bridges/explorer', {
+    hours,
+    chains: opts.chains,
+    bridges: opts.bridges,
+    statuses: opts.statuses,
+    limit: opts.limit ?? 1000,
+  });
+
 // ----------------- Spikes -----------------
 
 export interface SpikeSummary {

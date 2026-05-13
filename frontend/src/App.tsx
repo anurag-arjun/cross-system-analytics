@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/Layout';
+import { BridgeExplorerPage } from '@/pages/BridgeExplorer';
 import { BridgeFlowPage } from '@/pages/BridgeFlow';
 import { SpikesPage } from '@/pages/Spikes';
 
@@ -22,7 +23,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<Navigate to="/bridge" replace />} />
+            <Route path="/" element={<Navigate to="/explorer" replace />} />
+            <Route path="/explorer" element={<BridgeExplorerPage />} />
             <Route path="/bridge" element={<BridgeFlowPage />} />
             <Route path="/spikes" element={<SpikesPage />} />
           </Route>

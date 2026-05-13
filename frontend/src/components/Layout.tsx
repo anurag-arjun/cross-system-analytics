@@ -3,7 +3,7 @@
  */
 
 import { NavLink, Outlet } from 'react-router-dom';
-import { Activity, ArrowRightLeft } from 'lucide-react';
+import { Activity, ArrowRightLeft, Search } from 'lucide-react';
 
 export function Layout() {
   return (
@@ -14,6 +14,9 @@ export function Layout() {
             Nexus Analytics
           </div>
           <nav className="flex gap-1 ml-4 text-sm">
+            <Tab to="/explorer" icon={<Search size={14} />}>
+              Bridge Explorer
+            </Tab>
             <Tab to="/bridge" icon={<ArrowRightLeft size={14} />}>
               Bridge Flow
             </Tab>

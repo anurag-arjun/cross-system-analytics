@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+
+from core.identity.bridge_status import classify as classify_bridge_row
 
 from . import queries
 from .ch import get_client, rows_to_dicts
@@ -124,6 +127,53 @@ def cross_chain_matrix(
 ) -> dict:
     """Aggregated (src_chain, dst_chain) flow matrix from bridge_links."""
     return {"rows": _run(queries.cross_chain_matrix(days, None if chain == "all" else chain))}
+
+
+@app.get("/api/bridges/explorer")
+def bridges_explorer(
+    hours: int = Query(24, ge=1, le=14 * 24),
+    chains: str | None = Query(None, description="Comma-separated chain names"),
+    bridges: str | None = Query(None, description="Comma-separated bridge slugs"),
+    statuses: str | None = Query(None, description="Comma-separated statuses to keep (post-classification filter)"),
+    limit: int = Query(500, ge=1, le=5000),
+) -> dict:
+    """Per-transaction bridge explorer.
+
+    Returns up to `limit` rows, each pre-classified with a `status`
+    (matched / pending / in_flight / unmatched-*) and a list of
+    data-quality `tags`. Also returns a per-bridge punch-list summary.
+    """
+    chain_list = [c.strip() for c in chains.split(",")] if chains else None
+    bridge_list = [b.strip() for b in bridges.split(",")] if bridges else None
+    status_filter = {s.strip() for s in statuses.split(",")} if statuses else None
+    if chain_list:
+        for c in chain_list:
+            if c not in queries.CHAINS:
+                raise HTTPException(400, f"unknown chain: {c}")
+
+    sql = queries.bridge_explorer_rows(hours, chain_list, bridge_list, limit)
+    rows = _run(sql)
+
+    now = datetime.now(timezone.utc)
+    enriched = []
+    summary: dict[str, dict[str, int]] = {}
+    for r in rows:
+        verdict = classify_bridge_row(r, now=now)
+        if status_filter and verdict["status"] not in status_filter:
+            continue
+        r["status"] = verdict["status"]
+        r["tags"] = verdict["tags"]
+        r["status_reason"] = verdict["reason"]
+        enriched.append(r)
+        bucket = summary.setdefault(r.get("bridge") or "?", {})
+        bucket[verdict["status"]] = bucket.get(verdict["status"], 0) + 1
+
+    return {
+        "window_hours": hours,
+        "row_count": len(enriched),
+        "rows": enriched,
+        "summary": summary,
+    }
 
 
 @app.get("/api/bridge-flow/completion")
