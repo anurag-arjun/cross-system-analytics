@@ -9,6 +9,7 @@ RUN pip install --no-cache-dir \
     "python-dotenv>=1.0.0"
 
 COPY api /app/api
+COPY core /app/core
 
 EXPOSE 8000
 
