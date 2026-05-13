@@ -84,7 +84,7 @@ class TestClickHouseSinkBuffering:
         written = sink.write(events)
         assert written == 12
         assert len(sink.buffered) == 0
-        assert len(mock.inserts) == 1
+        assert [len(rows) for _, rows in mock.inserts] == [5, 5, 2]
 
     def test_write_single(self):
         sink = ClickHouseSink(SinkConfig(batch_size=10))

@@ -74,10 +74,17 @@ class ClickHouseSink(EventSink):
     def write(self, events: list[CanonicalEvent]) -> int:
         """Buffer events. The target table is ReplacingMergeTree, so
         duplicates collapse at merge time — no pre-insert dedup needed."""
-        self._buffer.extend(events)
-        if len(self._buffer) >= self.config.batch_size:
-            return self.flush()
-        return 0
+        written = 0
+        i = 0
+        while i < len(events):
+            take = self.config.batch_size - len(self._buffer)
+            self._buffer.extend(events[i:i + take])
+            i += take
+            if len(self._buffer) >= self.config.batch_size:
+                written += self.flush()
+        if len(events) >= self.config.batch_size:
+            written += self.flush()
+        return written
 
     def write_single(self, event: CanonicalEvent) -> int:
         """Buffer a single event."""
@@ -160,10 +167,17 @@ class RawLogSink:
         return self._client
 
     def write(self, rows: list[dict[str, Any]]) -> int:
-        self._buffer.extend(rows)
-        if len(self._buffer) >= self.config.batch_size:
-            return self.flush()
-        return 0
+        written = 0
+        i = 0
+        while i < len(rows):
+            take = self.config.batch_size - len(self._buffer)
+            self._buffer.extend(rows[i:i + take])
+            i += take
+            if len(self._buffer) >= self.config.batch_size:
+                written += self.flush()
+        if len(rows) >= self.config.batch_size:
+            written += self.flush()
+        return written
 
     def flush(self) -> int:
         if not self._buffer:
