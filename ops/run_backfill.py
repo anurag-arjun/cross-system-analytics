@@ -66,6 +66,10 @@ def main(argv: list[str] | None = None) -> int:
         help="ClickHouse insert batch size for raw logs and decoded events (default 10000).",
     )
     parser.add_argument(
+        "--raw-only", action="store_true",
+        help="Write canonical_logs only; skip decoding and canonical_events inserts.",
+    )
+    parser.add_argument(
         "--chains", nargs="+", default=None,
         help="Subset of chains to backfill (default all).",
     )
@@ -108,10 +112,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     # Resolver: address-first decoder lookup, preloaded into memory.
-    pc_store = PostgresProtocolContractStore(args.postgres)
-    resolver = make_cached_resolver(pc_store) if pc_store.count() > 0 else None
-    if resolver is None:
-        logger.warning("protocol_contracts is empty — decode-time lookup disabled")
+    # Raw-only backfill does not decode, so skip the Postgres lookup entirely.
+    resolver = None
+    if not args.raw_only:
+        pc_store = PostgresProtocolContractStore(args.postgres)
+        resolver = make_cached_resolver(pc_store) if pc_store.count() > 0 else None
+        if resolver is None:
+            logger.warning("protocol_contracts is empty — decode-time lookup disabled")
 
     adapter = MultiChainAdapter(
         chains=chains,
@@ -125,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
         database=args.ch_database, batch_size=args.sink_batch_size,
     )
     raw_sink = RawLogSink(SinkConfig(table="canonical_logs", **sink_cfg_kwargs))
-    event_sink = ClickHouseSink(SinkConfig(table="canonical_events", **sink_cfg_kwargs))
+    event_sink = None if args.raw_only else ClickHouseSink(SinkConfig(table="canonical_events", **sink_cfg_kwargs))
 
     chunk = timedelta(minutes=args.chunk_minutes)
     total_raw = 0
@@ -138,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         (end - start).total_seconds() / 3600.0,
         args.chunk_minutes, [c.chain for c in chains],
     )
-    logger.info("clickhouse sink batch_size=%d", args.sink_batch_size)
+    logger.info("clickhouse sink batch_size=%d raw_only=%s", args.sink_batch_size, args.raw_only)
 
     cursor = start
     try:
@@ -152,8 +159,11 @@ def main(argv: list[str] | None = None) -> int:
                 if logs:
                     raw_sink.write(logs)
                     chunk_raw += len(logs)
-                    events = list(chain_adapter.decode_logs(logs))
-                    if events:
+                    if event_sink is not None:
+                        events = list(chain_adapter.decode_logs(logs))
+                    else:
+                        events = []
+                    if events and event_sink is not None:
                         event_sink.write(events)
                         chunk_events += len(events)
             elapsed = time.time() - t0
@@ -171,7 +181,8 @@ def main(argv: list[str] | None = None) -> int:
             cursor = chunk_end
     finally:
         raw_sink.close()
-        event_sink.close()
+        if event_sink is not None:
+            event_sink.close()
         adapter.close()
 
     logger.info(
