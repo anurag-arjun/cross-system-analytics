@@ -1,0 +1,37 @@
+protocol: lido
+chains: [ethereum]
+events:
+  # stETH.Submitted — user staked ETH and was minted stETH.
+  - name: Submitted
+    inputs:
+      - {name: sender,   type: address, indexed: true}
+      - {name: amount,   type: uint256}
+      - {name: referral, type: address}
+    canonical:
+      event_type: stake
+      entity_id:  "{sender}"
+      venue:      "{log.address}"
+      token_in:   "ETH"
+      amount_in:  "{amount}"
+      extra:
+        referral: "{referral}"
+
+  # WithdrawalQueueERC721.WithdrawalRequested — user queued stETH for redemption.
+  # Different contract from stETH; both addresses must be seeded as protocol=lido.
+  - name: WithdrawalRequested
+    inputs:
+      - {name: requestId,       type: uint256, indexed: true}
+      - {name: requestor,       type: address, indexed: true}
+      - {name: owner,           type: address, indexed: true}
+      - {name: amountOfStETH,   type: uint256}
+      - {name: amountOfShares,  type: uint256}
+    canonical:
+      event_type: unstake
+      entity_id:  "{owner}"
+      venue:      "{log.address}"
+      token_out:  "stETH"
+      amount_out: "{amountOfStETH}"
+      extra:
+        requestor:        "{requestor}"
+        request_id:       "{requestId}"
+        amount_of_shares: "{amountOfShares}"

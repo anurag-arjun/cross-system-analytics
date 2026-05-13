@@ -561,6 +561,72 @@ def test_aave_v3_repay_decode():
     assert ev.extra["use_atokens"] == "True"
 
 
+LIDO_SUBMITTED_TOPIC0 = "0x96a25c8ce0baabc1fdefd93e9ed25d8e092a3332f3aa9a41722b5697231d1d1a"
+LIDO_WITHDRAWAL_REQUESTED_TOPIC0 = "0xf0cb471f23fb74ea44b8252eb1881a2dca546288d9f6e90d1a0e82fe0ed342ab"
+LIDO_STETH = "0xae7ab96520de3a18e5e111b5eaab095312d7fe84"
+LIDO_WITHDRAWAL_QUEUE = "0x889edc2edab5f40e902b864ad4d7ade8e412f9b1"
+
+
+def _uint256_topic(n: int) -> str:
+    return "0x" + format(n, "064x")
+
+
+def test_lido_submitted_decode():
+    decoder = _load_decoder("lido", LIDO_SUBMITTED_TOPIC0)
+    amount = 32 * 10**18  # 32 ETH stake
+    referral = "0x" + "77" * 20
+    data = encode(["uint256", "address"], [amount, referral]).hex()
+    log = {
+        "address": LIDO_STETH,
+        "topics": [LIDO_SUBMITTED_TOPIC0, _addr_topic(SENDER)],
+        "data": "0x" + data,
+        "blockNumber": "0x200",
+        "transactionHash": TX,
+        "logIndex": "0x10",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "stake"
+    assert ev.protocol == "lido"
+    assert ev.entity_id == SENDER
+    assert ev.venue == LIDO_STETH
+    assert ev.token_in == "ETH"
+    assert ev.amount_in == amount
+    assert ev.extra["referral"] == referral
+
+
+def test_lido_withdrawal_requested_decode():
+    decoder = _load_decoder("lido", LIDO_WITHDRAWAL_REQUESTED_TOPIC0)
+    request_id = 12345
+    requestor = "0x" + "aa" * 20
+    owner = "0x" + "bb" * 20
+    amount_steth = 5 * 10**18
+    amount_shares = int(4.8 * 10**18)
+    data = encode(["uint256", "uint256"], [amount_steth, amount_shares]).hex()
+    log = {
+        "address": LIDO_WITHDRAWAL_QUEUE,
+        "topics": [
+            LIDO_WITHDRAWAL_REQUESTED_TOPIC0,
+            _uint256_topic(request_id),
+            _addr_topic(requestor),
+            _addr_topic(owner),
+        ],
+        "data": "0x" + data,
+        "blockNumber": "0x201",
+        "transactionHash": TX,
+        "logIndex": "0x11",
+    }
+    ev = decoder.decode(log, TS)
+    assert ev is not None
+    assert ev.event_type == "unstake"
+    assert ev.protocol == "lido"
+    assert ev.entity_id == owner
+    assert ev.venue == LIDO_WITHDRAWAL_QUEUE
+    assert ev.token_out == "stETH"
+    assert ev.amount_out == amount_steth
+    assert ev.extra["request_id"] == str(request_id)
+
+
 def test_uniswap_v4_initialize_decoder():
     """UniV4 Initialize: surfaces currency0 + currency1 as token_in/token_out
     so the pool registry can be built from canonical_events."""
