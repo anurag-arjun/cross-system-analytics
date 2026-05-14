@@ -49,6 +49,14 @@ def _lit(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _ch_dt(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc)
+    return value.replace(tzinfo=None)
+
+
 def _ensure_table(client: Any) -> None:
     schema = Path(__file__).resolve().parent.parent / "core/schemas/clickhouse/bridge_explorer_rows.sql"
     client.command(schema.read_text())
@@ -125,19 +133,19 @@ def main(argv: list[str] | None = None) -> int:
     for row in raw_rows:
         verdict = classify_bridge_row(row, now=now)
         insert_rows.append((
-            start,
-            end,
+            _ch_dt(start),
+            _ch_dt(end),
             row.get("row_type") or "",
             row.get("link_key") or "",
             row.get("link_key_type") or "",
             row.get("bridge") or "",
             row.get("src_chain"),
-            row.get("src_block_time"),
+            _ch_dt(row.get("src_block_time")),
             row.get("src_tx_hash"),
             row.get("src_entity_id"),
             row.get("src_event_id") or "",
             row.get("dst_chain"),
-            row.get("dst_block_time"),
+            _ch_dt(row.get("dst_block_time")),
             row.get("dst_tx_hash"),
             row.get("dst_entity_id"),
             row.get("dst_event_id") or "",
@@ -153,8 +161,8 @@ def main(argv: list[str] | None = None) -> int:
             verdict["status"],
             verdict["tags"],
             verdict["reason"],
-            _sort_time(row, start),
-            materialized_at,
+            _ch_dt(_sort_time(row, start)),
+            _ch_dt(materialized_at),
         ))
 
     if insert_rows:
