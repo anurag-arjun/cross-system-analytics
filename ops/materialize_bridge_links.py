@@ -89,13 +89,11 @@ def main(argv: list[str] | None = None) -> int:
       coalesce(bo.amount_out, bi.amount_in) AS amount,
       coalesce(bo.amount_out_usd, bi.amount_in_usd) AS amount_usd,
       1.0 AS link_confidence
-    FROM nexus.canonical_events FINAL AS bo
-    INNER JOIN nexus.canonical_events FINAL AS bi
+    FROM (SELECT * FROM nexus.canonical_events FINAL WHERE event_type = 'bridge_out') AS bo
+    INNER JOIN (SELECT * FROM nexus.canonical_events FINAL WHERE event_type = 'bridge_in') AS bi
         ON bo.link_key = bi.link_key
        AND bo.link_key_type = bi.link_key_type
-    WHERE bo.event_type = 'bridge_out'
-      AND bi.event_type = 'bridge_in'
-      AND bo.link_key IS NOT NULL
+    WHERE bo.link_key IS NOT NULL
       AND bo.timestamp >= toDateTime64('{start_sql}', 3)
       AND bo.timestamp <  toDateTime64('{end_sql}', 3)
       AND bi.timestamp >= bo.timestamp
