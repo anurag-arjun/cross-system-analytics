@@ -11,6 +11,7 @@ import argparse
 import logging
 import os
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -70,6 +71,10 @@ def _sort_time(row: dict[str, Any], fallback: datetime) -> datetime:
 
 
 def main(argv: list[str] | None = None) -> int:
+    os.environ["TZ"] = "UTC"
+    if hasattr(time, "tzset"):
+        time.tzset()
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", help="UTC day, YYYY-MM-DD. Sets start/end to that day.")
     parser.add_argument("--start", help="ISO start timestamp.")
