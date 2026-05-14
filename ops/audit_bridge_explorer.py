@@ -265,31 +265,63 @@ def build_report(client: Any, start: datetime, end: datetime, top: int) -> dict[
         LIMIT {top}
     """)
     report["unmatched"]["unknown_opposite_side_exists_nearby"] = _query(client, f"""
-        WITH unknowns AS (
-          SELECT row_type, bridge, link_key_type, link_key
+        WITH unknown_outs AS (
+          SELECT bridge, link_key_type, link_key
           FROM nexus.bridge_explorer_rows
           WHERE {cache_window}
             AND status = 'UNMATCHED_UNKNOWN'
             AND link_key != ''
+            AND row_type = 'orphan_out'
+        ),
+        unknown_ins AS (
+          SELECT bridge, link_key_type, link_key
+          FROM nexus.bridge_explorer_rows
+          WHERE {cache_window}
+            AND status = 'UNMATCHED_UNKNOWN'
+            AND link_key != ''
+            AND row_type = 'orphan_in'
+        ),
+        out_probe AS (
+          SELECT
+            u.bridge AS bridge,
+            'orphan_out' AS row_type,
+            u.link_key_type AS link_key_type,
+            count() AS unknowns,
+            countIf(e.event_id != '') AS opposite_side_events_7d,
+            uniqExact(u.link_key) AS uniq_unknown_link_keys
+          FROM unknown_outs u
+          LEFT JOIN nexus.canonical_events e
+            ON e.link_key = u.link_key
+           AND e.link_key_type = u.link_key_type
+           AND e.event_type = 'bridge_in'
+           AND e.timestamp >= toDateTime64('{start_sql}', 3) - INTERVAL 7 DAY
+           AND e.timestamp < toDateTime64('{end_sql}', 3) + INTERVAL 7 DAY
+          GROUP BY u.bridge, u.link_key_type
+        ),
+        in_probe AS (
+          SELECT
+            u.bridge AS bridge,
+            'orphan_in' AS row_type,
+            u.link_key_type AS link_key_type,
+            count() AS unknowns,
+            countIf(e.event_id != '') AS opposite_side_events_7d,
+            uniqExact(u.link_key) AS uniq_unknown_link_keys
+          FROM unknown_ins u
+          LEFT JOIN nexus.canonical_events e
+            ON e.link_key = u.link_key
+           AND e.link_key_type = u.link_key_type
+           AND e.event_type = 'bridge_out'
+           AND e.timestamp >= toDateTime64('{start_sql}', 3) - INTERVAL 7 DAY
+           AND e.timestamp < toDateTime64('{end_sql}', 3) + INTERVAL 7 DAY
+          GROUP BY u.bridge, u.link_key_type
         )
         SELECT
-          u.bridge,
-          u.row_type,
-          u.link_key_type,
-          count() AS unknowns,
-          countIf(e.event_id != '') AS opposite_side_events_7d,
-          uniqExact(u.link_key) AS uniq_unknown_link_keys
-        FROM unknowns u
-        LEFT JOIN nexus.canonical_events e
-          ON e.link_key = u.link_key
-         AND e.link_key_type = u.link_key_type
-         AND e.timestamp >= toDateTime64('{start_sql}', 3) - INTERVAL 7 DAY
-         AND e.timestamp < toDateTime64('{end_sql}', 3) + INTERVAL 7 DAY
-         AND (
-           (u.row_type = 'orphan_out' AND e.event_type = 'bridge_in')
-           OR (u.row_type = 'orphan_in' AND e.event_type = 'bridge_out')
-         )
-        GROUP BY u.bridge, u.row_type, u.link_key_type
+          bridge, row_type, link_key_type, unknowns, opposite_side_events_7d, uniq_unknown_link_keys
+        FROM out_probe
+        UNION ALL
+        SELECT
+          bridge, row_type, link_key_type, unknowns, opposite_side_events_7d, uniq_unknown_link_keys
+        FROM in_probe
         ORDER BY unknowns DESC
         LIMIT {top}
     """)
