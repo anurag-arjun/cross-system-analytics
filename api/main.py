@@ -159,22 +159,38 @@ def bridges_explorer(
 
     start_sql = start.strftime("%Y-%m-%d %H:%M:%S") if start else None
     end_sql = end.strftime("%Y-%m-%d %H:%M:%S") if end else None
-    sql = queries.bridge_explorer_rows(hours, chain_list, bridge_list, limit, start_sql, end_sql)
-    rows = _run(sql)
-
-    now = datetime.now(timezone.utc)
     enriched = []
     summary: dict[str, dict[str, int]] = {}
-    for r in rows:
-        verdict = classify_bridge_row(r, now=now)
-        if status_filter and verdict["status"] not in status_filter:
-            continue
-        r["status"] = verdict["status"]
-        r["tags"] = verdict["tags"]
-        r["status_reason"] = verdict["reason"]
-        enriched.append(r)
-        bucket = summary.setdefault(r.get("bridge") or "?", {})
-        bucket[verdict["status"]] = bucket.get(verdict["status"], 0) + 1
+    if start_sql and end_sql and _run(queries.bridge_explorer_cache_count(start_sql, end_sql))[0]["cached_rows"] > 0:
+        enriched = _run(
+            queries.bridge_explorer_cached_rows(
+                chain_list,
+                bridge_list,
+                status_filter,
+                limit,
+                start_sql,
+                end_sql,
+            )
+        )
+        for r in enriched:
+            bucket = summary.setdefault(r.get("bridge") or "?", {})
+            status = r.get("status")
+            bucket[status] = bucket.get(status, 0) + 1
+    else:
+        sql = queries.bridge_explorer_rows(hours, chain_list, bridge_list, limit, start_sql, end_sql)
+        rows = _run(sql)
+
+        now = datetime.now(timezone.utc)
+        for r in rows:
+            verdict = classify_bridge_row(r, now=now)
+            if status_filter and verdict["status"] not in status_filter:
+                continue
+            r["status"] = verdict["status"]
+            r["tags"] = verdict["tags"]
+            r["status_reason"] = verdict["reason"]
+            enriched.append(r)
+            bucket = summary.setdefault(r.get("bridge") or "?", {})
+            bucket[verdict["status"]] = bucket.get(verdict["status"], 0) + 1
 
     return {
         "window_hours": hours,

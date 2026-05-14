@@ -669,6 +669,53 @@ def bridge_explorer_rows(
     """
 
 
+def bridge_explorer_cache_count(start: str, end: str) -> str:
+    return f"""
+        SELECT count() AS cached_rows
+        FROM bridge_explorer_rows
+        WHERE window_start = toDateTime64('{start}', 3)
+          AND window_end = toDateTime64('{end}', 3)
+    """
+
+
+def bridge_explorer_cached_rows(
+    chains: Iterable[str] | None,
+    bridges: Iterable[str] | None,
+    statuses: Iterable[str] | None,
+    limit: int,
+    start: str,
+    end: str,
+) -> str:
+    filters = [
+        f"window_start = toDateTime64('{start}', 3)",
+        f"window_end = toDateTime64('{end}', 3)",
+    ]
+    if chains:
+        slugs = ",".join(f"'{c}'" for c in chains)
+        filters.append(f"(src_chain IN ({slugs}) OR dst_chain IN ({slugs}))")
+    if bridges:
+        slugs = ",".join(f"'{b}'" for b in bridges)
+        filters.append(f"bridge IN ({slugs})")
+    if statuses:
+        slugs = ",".join(f"'{s}'" for s in statuses)
+        filters.append(f"status IN ({slugs})")
+    where = " AND ".join(filters)
+    return f"""
+        SELECT
+          row_type, link_key, link_key_type, bridge,
+          src_chain, src_block_time, src_tx_hash, src_entity_id, src_event_id,
+          dst_chain, dst_block_time, dst_tx_hash, dst_entity_id, dst_event_id,
+          src_token, src_amount, src_amount_usd,
+          dst_token, dst_amount, dst_amount_usd,
+          latency_seconds, dst_chain_id_hint, src_chain_id_hint,
+          status, tags, status_reason
+        FROM bridge_explorer_rows
+        WHERE {where}
+        ORDER BY sort_time DESC
+        LIMIT {limit}
+    """
+
+
 def bridge_completion(days: int, chain: str | None) -> str:
     """Of the bridge_outs in the window, how many got matched (ie a
     bridge_in was found within 7 days)? `link_rate` is the headline.
