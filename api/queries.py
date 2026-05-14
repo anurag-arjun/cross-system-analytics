@@ -569,11 +569,11 @@ def bridge_explorer_rows(
     WITH
       -- already-linked source events (anti-join target for orphan_out)
       linked_src AS (
-        SELECT src_event_id FROM bridge_links FINAL
+        SELECT src_event_id FROM bridge_links
         WHERE {src_window}
       ),
       linked_dst AS (
-        SELECT dst_event_id FROM bridge_links FINAL
+        SELECT dst_event_id FROM bridge_links
         WHERE {dst_window}
       )
 
@@ -602,9 +602,9 @@ def bridge_explorer_rows(
       toInt32(date_diff('second', bl.src_block_time, bl.dst_block_time)) AS latency_seconds,
       ''                AS dst_chain_id_hint,
       ''                AS src_chain_id_hint
-    FROM (SELECT * FROM bridge_links FINAL WHERE {pair_window}) AS bl
-    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out' AND {ev_window}) AS bo ON bo.event_id = bl.src_event_id
-    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in' AND {pair_in_window}) AS bi ON bi.event_id = bl.dst_event_id
+    FROM (SELECT * FROM bridge_links WHERE {pair_window}) AS bl
+    LEFT JOIN (SELECT * FROM canonical_events WHERE event_type='bridge_out' AND {ev_window}) AS bo ON bo.event_id = bl.src_event_id
+    LEFT JOIN (SELECT * FROM canonical_events WHERE event_type='bridge_in' AND {pair_in_window}) AS bi ON bi.event_id = bl.dst_event_id
     WHERE 1=1
       {bridge_in_filter.replace('bridge', 'bo.protocol')}
       {chain_pair}
@@ -629,7 +629,7 @@ def bridge_explorer_rows(
       NULL AS latency_seconds,
       extract(extra, '"destination_chain_id"\\s*:\\s*(\\d+)') AS dst_chain_id_hint,
       ''  AS src_chain_id_hint
-    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out' AND {ev_window}) AS bo2
+    FROM (SELECT * FROM canonical_events WHERE event_type='bridge_out' AND {ev_window}) AS bo2
     WHERE 1=1
       AND event_id NOT IN (SELECT src_event_id FROM linked_src)
       {bridge_out_filter.replace('bridge', 'protocol')}
@@ -658,7 +658,7 @@ def bridge_explorer_rows(
         nullif(JSONExtractString(extra, 'origin_chain_id'), ''),
         extract(extra, '"origin_chain_id"\\s*:\\s*(\\d+)')
       ) AS src_chain_id_hint
-    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in' AND {ev_window}) AS bi2
+    FROM (SELECT * FROM canonical_events WHERE event_type='bridge_in' AND {ev_window}) AS bi2
     WHERE 1=1
       AND event_id NOT IN (SELECT dst_event_id FROM linked_dst)
       {bridge_in_filter.replace('bridge', 'protocol')}
