@@ -702,9 +702,9 @@ def bridge_explorer_cached_rows(
     where = " AND ".join(filters)
     return f"""
         SELECT
-          row_type, link_key, link_key_type, bridge,
-          src_chain, src_block_time, src_tx_hash, src_entity_id, src_event_id,
-          dst_chain, dst_block_time, dst_tx_hash, dst_entity_id, dst_event_id,
+          row_type, nullIf(link_key, '') AS link_key, nullIf(link_key_type, '') AS link_key_type, bridge,
+          src_chain, src_block_time, src_tx_hash, src_entity_id, nullIf(src_event_id, '') AS src_event_id,
+          dst_chain, dst_block_time, dst_tx_hash, dst_entity_id, nullIf(dst_event_id, '') AS dst_event_id,
           src_token, src_amount, src_amount_usd,
           dst_token, dst_amount, dst_amount_usd,
           latency_seconds, dst_chain_id_hint, src_chain_id_hint,
