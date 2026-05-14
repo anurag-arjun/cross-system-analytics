@@ -49,12 +49,12 @@ def _lit(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def _ch_dt(value: datetime | None) -> datetime | None:
+def _ch_dt(value: datetime | None) -> str | None:
     if value is None:
         return None
     if value.tzinfo is not None:
         value = value.astimezone(timezone.utc)
-    return value.replace(tzinfo=None)
+    return value.strftime("%Y-%m-%d %H:%M:%S.%f")[:23]
 
 
 def _ensure_table(client: Any) -> None:
