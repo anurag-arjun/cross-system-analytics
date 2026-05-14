@@ -551,11 +551,16 @@ def bridge_explorer_rows(
         src_window = f"src_block_time >= toDateTime64('{start}', 3) AND src_block_time < toDateTime64('{end}', 3)"
         dst_window = f"dst_block_time >= toDateTime64('{start}', 3) AND dst_block_time < toDateTime64('{end}', 3)"
         ev_window = f"timestamp >= toDateTime64('{start}', 3) AND timestamp < toDateTime64('{end}', 3)"
+        pair_in_window = (
+            f"timestamp >= toDateTime64('{start}', 3) "
+            f"AND timestamp < toDateTime64('{end}', 3) + INTERVAL 7 DAY"
+        )
         pair_window = src_window
     else:
         src_window = f"src_block_time > now() - INTERVAL {hours} HOUR"
         dst_window = f"dst_block_time > now() - INTERVAL {hours} HOUR"
         ev_window = f"timestamp > now() - INTERVAL {hours} HOUR"
+        pair_in_window = ev_window
         pair_window = src_window
 
     return f"""
@@ -598,8 +603,8 @@ def bridge_explorer_rows(
       ''                AS dst_chain_id_hint,
       ''                AS src_chain_id_hint
     FROM (SELECT * FROM bridge_links FINAL WHERE {pair_window}) AS bl
-    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out') AS bo ON bo.event_id = bl.src_event_id
-    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in')  AS bi ON bi.event_id = bl.dst_event_id
+    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out' AND {ev_window}) AS bo ON bo.event_id = bl.src_event_id
+    LEFT JOIN (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in' AND {pair_in_window}) AS bi ON bi.event_id = bl.dst_event_id
     WHERE 1=1
       {bridge_in_filter.replace('bridge', 'bo.protocol')}
       {chain_pair}
@@ -624,8 +629,8 @@ def bridge_explorer_rows(
       NULL AS latency_seconds,
       extract(extra, '"destination_chain_id"\\s*:\\s*(\\d+)') AS dst_chain_id_hint,
       ''  AS src_chain_id_hint
-    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out') AS bo2
-    WHERE {ev_window}
+    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_out' AND {ev_window}) AS bo2
+    WHERE 1=1
       AND event_id NOT IN (SELECT src_event_id FROM linked_src)
       {bridge_out_filter.replace('bridge', 'protocol')}
       {chain_out}
@@ -653,8 +658,8 @@ def bridge_explorer_rows(
         nullif(JSONExtractString(extra, 'origin_chain_id'), ''),
         extract(extra, '"origin_chain_id"\\s*:\\s*(\\d+)')
       ) AS src_chain_id_hint
-    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in') AS bi2
-    WHERE {ev_window}
+    FROM (SELECT * FROM canonical_events FINAL WHERE event_type='bridge_in' AND {ev_window}) AS bi2
+    WHERE 1=1
       AND event_id NOT IN (SELECT dst_event_id FROM linked_dst)
       {bridge_in_filter.replace('bridge', 'protocol')}
       {chain_in}
