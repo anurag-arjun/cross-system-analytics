@@ -132,6 +132,8 @@ def cross_chain_matrix(
 @app.get("/api/bridges/explorer")
 def bridges_explorer(
     hours: int = Query(24, ge=1, le=14 * 24),
+    start: datetime | None = Query(None, description="UTC start timestamp; use with end"),
+    end: datetime | None = Query(None, description="UTC end timestamp; use with start"),
     chains: str | None = Query(None, description="Comma-separated chain names"),
     bridges: str | None = Query(None, description="Comma-separated bridge slugs"),
     statuses: str | None = Query(None, description="Comma-separated statuses to keep (post-classification filter)"),
@@ -150,8 +152,14 @@ def bridges_explorer(
         for c in chain_list:
             if c not in queries.CHAINS:
                 raise HTTPException(400, f"unknown chain: {c}")
+    if (start is None) != (end is None):
+        raise HTTPException(400, "start and end must be provided together")
+    if start and end and start >= end:
+        raise HTTPException(400, "start must be before end")
 
-    sql = queries.bridge_explorer_rows(hours, chain_list, bridge_list, limit)
+    start_sql = start.strftime("%Y-%m-%d %H:%M:%S") if start else None
+    end_sql = end.strftime("%Y-%m-%d %H:%M:%S") if end else None
+    sql = queries.bridge_explorer_rows(hours, chain_list, bridge_list, limit, start_sql, end_sql)
     rows = _run(sql)
 
     now = datetime.now(timezone.utc)
@@ -170,6 +178,8 @@ def bridges_explorer(
 
     return {
         "window_hours": hours,
+        "start": start.isoformat() if start else None,
+        "end": end.isoformat() if end else None,
         "row_count": len(enriched),
         "rows": enriched,
         "summary": summary,

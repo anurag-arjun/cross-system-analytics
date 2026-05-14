@@ -163,6 +163,8 @@ export interface ExplorerRow {
 
 export interface ExplorerResponse {
   window_hours: number;
+  start: string | null;
+  end: string | null;
   row_count: number;
   rows: ExplorerRow[];
   summary: Record<string, Partial<Record<BridgeStatus, number>>>;
@@ -170,10 +172,12 @@ export interface ExplorerResponse {
 
 export const fetchExplorer = (
   hours: number,
-  opts: { chains?: string; bridges?: string; statuses?: string; limit?: number } = {},
+  opts: { chains?: string; bridges?: string; statuses?: string; limit?: number; start?: string; end?: string } = {},
 ) =>
   get<ExplorerResponse>('/api/bridges/explorer', {
     hours,
+    start: opts.start,
+    end: opts.end,
     chains: opts.chains,
     bridges: opts.bridges,
     statuses: opts.statuses,

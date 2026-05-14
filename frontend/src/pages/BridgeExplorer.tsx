@@ -61,6 +61,12 @@ const WINDOWS = [
   { hours: 336, label: '14d' },
 ];
 
+const V1_DAY = {
+  label: 'May 12',
+  start: '2026-05-12T00:00:00Z',
+  end: '2026-05-13T00:00:00Z',
+};
+
 const PAGE_SIZES = [20, 50, 100] as const;
 type PageSize = (typeof PAGE_SIZES)[number];
 
@@ -72,6 +78,7 @@ const CHAINS = ['ethereum', 'base', 'arbitrum', 'optimism', 'polygon'] as const;
 
 export function BridgeExplorerPage() {
   const [hours, setHours] = useState(24);
+  const [fixedWindow, setFixedWindow] = useState(false);
   const [statusFilter, setStatusFilter] = useState<Set<BridgeStatus>>(new Set());
   const [chainFilter, setChainFilter] = useState<Set<string>>(new Set());
   const [bridgeFilter, setBridgeFilter] = useState<Set<string>>(new Set());
@@ -79,15 +86,19 @@ export function BridgeExplorerPage() {
   const [page, setPage] = useState(0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['explorer', hours],
-    queryFn: () => fetchExplorer(hours, { limit: 2000 }),
+    queryKey: ['explorer', hours, fixedWindow],
+    queryFn: () => fetchExplorer(hours, {
+      limit: 2000,
+      start: fixedWindow ? V1_DAY.start : undefined,
+      end: fixedWindow ? V1_DAY.end : undefined,
+    }),
   });
 
   // Reset to page 0 whenever the filter set or window changes — otherwise
   // we'd land on a page that's now empty.
   useEffect(() => {
     setPage(0);
-  }, [statusFilter, chainFilter, bridgeFilter, hours, pageSize]);
+  }, [statusFilter, chainFilter, bridgeFilter, hours, fixedWindow, pageSize]);
 
   // Client-side filter so the user can flip statuses without re-querying.
   const filteredRows = useMemo(() => {
@@ -125,12 +136,28 @@ export function BridgeExplorerPage() {
 
       {/* Window selector */}
       <div className="flex gap-1 rounded-md bg-[var(--color-panel)] border border-[var(--color-border)] p-1 w-fit mb-4">
+        <button
+          onClick={() => {
+            setFixedWindow(true);
+            setHours(24);
+          }}
+          className={`px-3 py-1 rounded text-sm transition ${
+            fixedWindow
+              ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
+              : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
+          }`}
+        >
+          {V1_DAY.label}
+        </button>
         {WINDOWS.map((w) => (
           <button
             key={w.hours}
-            onClick={() => setHours(w.hours)}
+            onClick={() => {
+              setFixedWindow(false);
+              setHours(w.hours);
+            }}
             className={`px-3 py-1 rounded text-sm transition ${
-              hours === w.hours
+              !fixedWindow && hours === w.hours
                 ? 'bg-[var(--color-accent-bg)] text-[var(--color-accent)]'
                 : 'text-[var(--color-muted)] hover:text-[var(--color-text)]'
             }`}
